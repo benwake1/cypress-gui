@@ -1,0 +1,148 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 2,
+    "passes": 1,
+    "pending": 0,
+    "failures": 1,
+    "testsRegistered": 2,
+    "passPercent": 50,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false,
+    "start": "2026-03-11T19:55:46.406Z",
+    "end": "2026-03-11T19:55:51.775Z",
+    "duration": 5369
+  },
+  "results": [
+    {
+      "uuid": "02b1206f-2244-45c2-84a8-51164acd5946",
+      "title": "",
+      "fullFile": "cypress/e2e/demo.cy.js",
+      "file": "cypress/e2e/demo.cy.js",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "2f8f63d0-6779-446e-9845-ec7893a3207a",
+          "title": "Dummy test",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "always passes",
+              "fullTitle": "Dummy test always passes",
+              "timedOut": null,
+              "duration": 14,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "expect(true).to.equal(true);",
+              "err": {},
+              "uuid": "858bf183-7adf-4c2c-97c1-2b7599184a67",
+              "parentUUID": "2f8f63d0-6779-446e-9845-ec7893a3207a",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "858bf183-7adf-4c2c-97c1-2b7599184a67"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 14,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        },
+        {
+          "uuid": "6b84e01e-9f2d-4f4a-8c9e-1b77508ba63f",
+          "title": "Demo Failing Test",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "Intentionally fails to demo screenshots and videos",
+              "fullTitle": "Demo Failing Test Intentionally fails to demo screenshots and videos",
+              "timedOut": null,
+              "duration": 4487,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// This assertion will always fail\ncy.get('h1').should('contain', 'THIS TEXT DOES NOT EXIST');\n// Another failing assertion\ncy.get('body').should('have.class', 'non-existent-class');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 4000ms: expected '<h1>' to contain 'THIS TEXT DOES NOT EXIST'",
+                "estack": "AssertionError: Timed out retrying after 4000ms: expected '<h1>' to contain 'THIS TEXT DOES NOT EXIST'\n    at Context.eval (webpack://cypress-mochawesome-demo/./cypress/e2e/demo.cy.js:16:13)",
+                "diff": null
+              },
+              "uuid": "e727fd5f-dddd-436f-b85c-b80abdf6b302",
+              "parentUUID": "6b84e01e-9f2d-4f4a-8c9e-1b77508ba63f",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "e727fd5f-dddd-436f-b85c-b80abdf6b302"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 4487,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.4"
+    },
+    "marge": {
+      "options": {
+        "reportDir": "mochawesome-report",
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.3.2"
+    }
+  }
+}

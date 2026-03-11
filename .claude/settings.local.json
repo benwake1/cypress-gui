@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan:*)",
+      "Bash(sqlite3 database/database.sqlite \"SELECT id, name, email, role FROM users;\")",
+      "Bash(sqlite3 /Users/benwake/Sites/cypress-dashboard/database/database.sqlite \"SELECT id, name, email, role FROM users;\")",
+      "Bash(sqlite3 /Users/benwake/Sites/cypress-dashboard/database/database.sqlite \"UPDATE users SET role = ''pm'' WHERE id = 2;\")"
+    ]
+  }
+}
