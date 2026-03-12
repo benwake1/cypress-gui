@@ -16,6 +16,7 @@
 .env.*
 !.env.example
 auth.json
+client_secret_*.json
 
 # -----------------------------------------------
 # Database files
@@ -31,6 +32,8 @@ auth.json
 /storage/app/private/
 /storage/app/public/runs/
 /storage/app/public/clients/
+/storage/app/public/reports/
+/storage/app/reports/
 /storage/logs/
 /storage/framework/cache/
 /storage/framework/sessions/
