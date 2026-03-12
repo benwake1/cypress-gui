@@ -199,10 +199,10 @@
         <div
             x-show="lightbox.open"
             x-transition.opacity
+            x-cloak
             @keydown.escape.window="closeMedia()"
             @click.self="closeMedia()"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-            style="display:none"
         >
             <div class="relative max-w-5xl w-full max-h-[90vh] flex flex-col">
                 <button @click="closeMedia()" class="absolute -top-10 right-0 text-white text-sm hover:text-gray-300 flex items-center gap-1">
