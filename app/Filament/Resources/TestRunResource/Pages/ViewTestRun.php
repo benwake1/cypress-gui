@@ -54,14 +54,6 @@ class ViewTestRun extends ViewRecord
                 ->openUrlInNewTab()
                 ->visible(fn () => $this->record->report_html_path !== null),
 
-            Actions\Action::make('download_pdf')
-                ->label('PDF Report')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('success')
-                ->url(fn () => $this->record->report_pdf_url)
-                ->openUrlInNewTab()
-                ->visible(fn () => $this->record->report_pdf_path !== null),
-
             Actions\Action::make('regenerate_report')
                 ->label('Regenerate Report')
                 ->icon('heroicon-o-arrow-path')

@@ -19,14 +19,9 @@ Route::get('/login', fn () => redirect('/admin/login'))->name('login');
 // Public branded report routes (protected by signed URL or token)
 Route::prefix('reports')->group(function () {
 
-    // View HTML report in browser (used for PDF generation & client sharing)
+    // View HTML report in browser
     Route::get('/run/{testRun}/html', [ReportController::class, 'html'])
         ->name('reports.html')
-        ->middleware('auth');
-
-    // Download PDF report
-    Route::get('/run/{testRun}/pdf', [ReportController::class, 'pdf'])
-        ->name('reports.pdf')
         ->middleware('auth');
 
     // Shareable signed URL (no auth required — for client delivery)

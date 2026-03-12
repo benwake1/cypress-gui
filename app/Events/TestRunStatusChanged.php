@@ -42,7 +42,6 @@ class TestRunStatusChanged implements ShouldBroadcast
             'pass_rate' => $this->run->pass_rate,
             'duration_formatted' => $this->run->duration_formatted,
             'report_html_url' => $this->run->report_html_url,
-            'report_pdf_url' => $this->run->report_pdf_url,
         ];
     }
 }

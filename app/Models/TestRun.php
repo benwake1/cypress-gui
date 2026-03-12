@@ -23,7 +23,6 @@ class TestRun extends Model
         'log_output',
         'error_message',
         'report_html_path',
-        'report_pdf_path',
         'merged_json_path',
         'started_at',
         'finished_at',
@@ -123,11 +122,6 @@ class TestRun extends Model
     public function getReportHtmlUrlAttribute(): ?string
     {
         return $this->report_html_path ? route('reports.html', $this) : null;
-    }
-
-    public function getReportPdfUrlAttribute(): ?string
-    {
-        return $this->report_pdf_path ? route('reports.pdf', $this) : null;
     }
 
     public function getReportShareUrlAttribute(): ?string

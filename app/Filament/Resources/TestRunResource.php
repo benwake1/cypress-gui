@@ -222,14 +222,6 @@ class TestRunResource extends Resource
                     ->openUrlInNewTab()
                     ->visible(fn (TestRun $record) => $record->report_html_path !== null),
 
-                Tables\Actions\Action::make('download_pdf')
-                    ->label('PDF Report')
-                    ->icon('heroicon-o-document-arrow-down')
-                    ->color('success')
-                    ->url(fn (TestRun $record) => $record->report_pdf_url)
-                    ->openUrlInNewTab()
-                    ->visible(fn (TestRun $record) => $record->report_pdf_path !== null),
-
                 Tables\Actions\Action::make('share_report')
                     ->label('Share Link')
                     ->icon('heroicon-o-link')

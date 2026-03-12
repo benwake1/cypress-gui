@@ -75,15 +75,6 @@ class RunCypressTestJob implements ShouldQueue
             $this->log('📄 Generating branded HTML report...');
             $reporter->generateHtmlReport($this->run->fresh());
 
-            // 10. Generate PDF report
-            $this->log('📋 Generating PDF report...');
-            try {
-                $reporter->generatePdfReport($this->run->fresh());
-            } catch (\Exception $e) {
-                $this->log('⚠️  PDF generation failed (Browsershot not available), HTML report available instead.');
-                Log::warning('PDF generation failed', ['error' => $e->getMessage(), 'run_id' => $this->run->id]);
-            }
-
             $freshRun = $this->run->fresh();
             $this->log($freshRun->status === TestRun::STATUS_PASSING
                 ? "✅ All {$freshRun->passed_tests} tests passed!"

@@ -39,7 +39,7 @@ A self-hosted Cypress testing dashboard built with **Laravel 11** and **Filament
 - **Live log streaming** — watch Cypress output line by line via WebSocket (Laravel Reverb)
 - **Mochawesome parsing** — automatically merges and parses JSON test reports into the database
 - **Branded HTML reports** — fully self-contained, per-client styled reports
-- **PDF export** — downloadable PDFs via Browsershot/Chromium, with in-browser print fallback
+- **PDF export** — browser-native print-to-PDF from the HTML report, no server dependencies
 - **Screenshots & videos** — stored and displayed inline with lightbox modal in reports
 - **Shareable links** — 30-day expiring HMAC-signed URLs for client delivery, no login required
 - **Role-based access** — Admin (full access) and PM (run tests, view reports only)
@@ -62,7 +62,6 @@ A self-hosted Cypress testing dashboard built with **Laravel 11** and **Filament
 | Cache driver | Redis |
 | Session driver | Database |
 | Database | SQLite (development) / MySQL or PostgreSQL (production) |
-| PDF generation | Spatie Browsershot + Chromium |
 | Test runner | Cypress (installed per-project via npm) |
 | Report parsing | Mochawesome JSON |
 
@@ -80,7 +79,6 @@ Install the following before running the application:
 | npm | Package manager for frontend and Cypress |
 | Redis | Required for queue and cache |
 | Git | For cloning test repositories |
-| Chromium / Chrome | Optional — required for PDF report generation |
 | SSH | Required if using private Git repositories |
 
 ---
@@ -435,9 +433,8 @@ The test job (`RunCypressTestJob`) performs these steps in order:
 10. Maps video files to spec results
 11. Maps screenshot files to failed test results
 12. Generates the branded HTML report (stored on the private local disk)
-13. Generates a PDF report via Browsershot (falls back to HTML if unavailable)
-14. Broadcasts a final `status.changed` event to the browser
-15. Cleans up the temporary directory
+13. Broadcasts a final `status.changed` event to the browser
+14. Cleans up the temporary directory
 
 If any step fails, the run is marked `error` and the error message is stored.
 
@@ -457,13 +454,7 @@ Generated automatically after every run. Served via an authenticated controller 
 - Per-spec file breakdown with status badges
 - Failure details: error message, stack trace, test code
 - Screenshots and videos in an inline lightbox
-- **Save as PDF** print button (floating, hidden during print)
-
-### PDF Report
-
-Generated via Spatie Browsershot (requires Chromium on the server). Falls back to the HTML report if Browsershot is unavailable.
-
-**Access:** Test Runs table → **PDF Report** button, or the run detail view header.
+- **Save as PDF** button — uses the browser's native print-to-PDF, no server dependencies required
 
 ### Shareable Links
 
@@ -824,13 +815,6 @@ sudo -u www-data ssh -T git@github.com -o StrictHostKeyChecking=accept-new
 Confirm `NODE_PATH` and `NPM_PATH` in `.env` point to binaries accessible by the queue worker user:
 ```bash
 sudo -u www-data /usr/local/bin/npx cypress --version
-```
-
-**PDF not generating**
-Confirm Chromium is installed and accessible. Test via Tinker:
-```bash
-php artisan tinker
->>> \Spatie\Browsershot\Browsershot::url('https://example.com')->bodyHtml();
 ```
 
 **Auth redirect loop**

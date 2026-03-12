@@ -35,30 +35,6 @@ class ReportController
     }
 
     /**
-     * Download the PDF report.
-     */
-    public function pdf(TestRun $testRun): Response
-    {
-        if (!$testRun->report_pdf_path || !Storage::disk('local')->exists($testRun->report_pdf_path)) {
-            try {
-                $this->reportGenerator->generatePdfReport($testRun);
-                $testRun->refresh();
-            } catch (\Exception $e) {
-                return $this->html($testRun);
-            }
-        }
-
-        $this->validateReportPath($testRun->report_pdf_path, $testRun->id);
-
-        $filename = "test-report-{$testRun->project->client->slug}-{$testRun->project->slug}-run-{$testRun->id}.pdf";
-
-        return response()->download(
-            Storage::disk('local')->path($testRun->report_pdf_path),
-            $filename
-        );
-    }
-
-    /**
      * Publicly shareable report (for client delivery without login).
      * Uses a simple token stored on the run for validation.
      */

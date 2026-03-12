@@ -19,10 +19,7 @@ class CleanupOldArtifacts extends Command
 
         $runs = TestRun::whereIn('status', ['passing', 'failed', 'error', 'cancelled'])
             ->where('created_at', '<', $cutoff)
-            ->where(function ($q) {
-                $q->whereNotNull('report_html_path')
-                  ->orWhereNotNull('report_pdf_path');
-            })
+            ->whereNotNull('report_html_path')
             ->get();
 
         if ($runs->isEmpty()) {
@@ -66,7 +63,6 @@ class CleanupOldArtifacts extends Command
                 // Null out paths on the run
                 $run->update([
                     'report_html_path' => null,
-                    'report_pdf_path'  => null,
                 ]);
 
                 // Null out media paths on individual results

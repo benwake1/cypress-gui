@@ -80,12 +80,6 @@ class RecentRunsWidget extends BaseWidget
                     ->openUrlInNewTab()
                     ->visible(fn (TestRun $record) => $record->report_html_path !== null),
 
-                Tables\Actions\Action::make('pdf_report')
-                    ->icon('heroicon-o-document-arrow-down')
-                    ->color('success')
-                    ->url(fn (TestRun $record) => $record->report_pdf_url)
-                    ->openUrlInNewTab()
-                    ->visible(fn (TestRun $record) => $record->report_pdf_path !== null),
             ]);
     }
 }
