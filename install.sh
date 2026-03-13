@@ -269,6 +269,13 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=https://${DOMAIN}/admin/oauth/callback/google
 
+# Branding (optional — defaults used if not set)
+BRAND_NAME=
+BRAND_PRIMARY_COLOR=
+BRAND_LOGO_PATH=
+BRAND_LOGO_HEIGHT=2rem
+BRAND_FAVICON_PATH=
+
 # Node binary paths — update if different on this server
 NODE_PATH=$(which node)
 NPM_PATH=$(which npm)

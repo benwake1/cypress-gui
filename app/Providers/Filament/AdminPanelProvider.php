@@ -36,15 +36,16 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->colors([
-                'primary' => Color::Blue,
+                'primary' => env('BRAND_PRIMARY_COLOR') ? Color::hex(env('BRAND_PRIMARY_COLOR')) : Color::Blue,
                 'success' => Color::Green,
                 'danger'  => Color::Red,
                 'warning' => Color::Amber,
                 'info'    => Color::Sky,
             ])
-            ->brandName(config('app.name'))
-            ->brandLogo(null)
-            ->favicon(null)
+            ->brandName(env('BRAND_NAME', config('app.name')))
+            ->brandLogo(env('BRAND_LOGO_PATH') ? asset(env('BRAND_LOGO_PATH')) : null)
+            ->brandLogoHeight(env('BRAND_LOGO_HEIGHT', '2rem'))
+            ->favicon(env('BRAND_FAVICON_PATH') ? asset(env('BRAND_FAVICON_PATH')) : null)
             ->darkMode(true)
             ->navigationGroups([
                 NavigationGroup::make('Testing')
