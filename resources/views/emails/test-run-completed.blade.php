@@ -39,7 +39,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding: 10px;">
+                    <td style="padding: 5px;">
                         <br />
                     </td>
                 </tr>
