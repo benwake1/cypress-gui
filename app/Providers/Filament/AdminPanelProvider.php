@@ -36,17 +36,17 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->colors([
-                'primary' => env('BRAND_PRIMARY_COLOR') ? Color::hex(env('BRAND_PRIMARY_COLOR')) : Color::Blue,
+                'primary' => config('brand.primary_color') ? Color::hex(config('brand.primary_color')) : Color::Blue,
                 'success' => Color::Green,
                 'danger'  => Color::Red,
                 'warning' => Color::Amber,
                 'info'    => Color::Sky,
             ])
-            ->brandName(env('BRAND_NAME') ?: config('app.name'))
-            ->brandLogo(env('BRAND_LOGO_PATH') ? asset(env('BRAND_LOGO_PATH')) : null)
-            ->darkModeBrandLogo(asset(env('BRAND_LOGO_DARK_PATH') ?: env('BRAND_LOGO_PATH') ?: '')  ?: null)
-            ->brandLogoHeight(env('BRAND_LOGO_HEIGHT', '2rem'))
-            ->favicon(env('BRAND_FAVICON_PATH') ? asset(env('BRAND_FAVICON_PATH')) : null)
+            ->brandName(config('brand.name') ?: config('app.name'))
+            ->brandLogo(config('brand.logo_path') ? asset(config('brand.logo_path')) : null)
+            ->darkModeBrandLogo(config('brand.logo_dark_path') || config('brand.logo_path') ? asset(config('brand.logo_dark_path') ?: config('brand.logo_path')) : null)
+            ->brandLogoHeight(config('brand.logo_height'))
+            ->favicon(config('brand.favicon_path') ? asset(config('brand.favicon_path')) : null)
             ->darkMode(true)
             ->navigationGroups([
                 NavigationGroup::make('Testing')
