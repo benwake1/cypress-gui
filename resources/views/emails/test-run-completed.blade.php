@@ -41,7 +41,7 @@
 
                 {{-- Card body --}}
                 <tr>
-                    <td style="background:#ffffff;border-radius:0 0 12px 12px;border:1px solid #e5e7eb;border-top:0;overflow:hidden;">
+                    <td style="background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
 
                         {{-- Project info --}}
                         <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
