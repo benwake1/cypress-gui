@@ -81,6 +81,7 @@ class ProjectResource extends Resource
                         ->placeholder('Paste your private SSH key here, or generate one below.')
                         ->rows(8)
                         ->extraAttributes(['style' => 'font-family: monospace; font-size: 0.75rem;'])
+                        ->dehydrated(fn ($state) => filled($state))
                         ->columnSpanFull(),
 
                     Forms\Components\Textarea::make('deploy_key_public')
