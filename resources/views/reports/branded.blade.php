@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Test Report — {{ $project->name }} — {{ $generatedAt->format('d M Y') }}</title>
 
     {{-- Dynamic CSS variables driven by client branding (PHP-side, cannot be Tailwind) --}}
@@ -40,10 +40,31 @@
         .font-code {
             font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
         }
+
+        /* iOS safe area: html background fallback for notch/home bar colour */
+        html {
+            background: var(--primary);
+        }
     </style>
 
     {{-- Compiled Tailwind CSS — injected inline at render time from the Vite manifest --}}
     <style>{!! $reportCss !!}</style>
+
+    {{-- Safe area overrides — must come after Tailwind to win the cascade --}}
+    <style>
+        .report-header {
+            padding-top: calc(2rem + env(safe-area-inset-top, 0px));
+        }
+        @media (min-width: 768px) {
+            .report-header { padding-top: calc(2.5rem + env(safe-area-inset-top, 0px)); }
+        }
+        .report-footer {
+            padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+        }
+        @media (min-width: 768px) {
+            .report-footer { padding-bottom: calc(2.5rem + env(safe-area-inset-bottom, 0px)); }
+        }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-900 leading-relaxed"
       style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 14px;">
@@ -275,7 +296,7 @@
     </div>
 
     {{-- ===== FOOTER ===== --}}
-    <div class="grad text-white relative overflow-hidden px-6 py-8 md:px-12 md:py-10 print-exact">
+    <div class="report-footer grad text-white relative overflow-hidden px-6 py-8 md:px-12 md:py-10 print-exact">
         <div class="flex flex-col py-6 gap-3 md:flex-row md:justify-between md:items-center md:px-12 max-w-7xl mx-auto">
             <div class="opacity-85 leading-relaxed">
                 @if($client->report_footer_text)
