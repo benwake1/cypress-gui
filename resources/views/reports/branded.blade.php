@@ -305,7 +305,7 @@
 
     {{-- ===== PRINT BUTTON (hidden on print) ===== --}}
     <button onclick="window.print()"
-            class="print-btn-bg print:hidden fixed bottom-8 right-8 text-white border-none rounded-full px-6 py-3.5 text-sm font-bold cursor-pointer shadow-lg flex items-center gap-2 z-50 hover:-translate-y-0.5 hover:shadow-xl transition-all">
+            class="print-btn-bg print:hidden hidden md:block md:fixed bottom-8 right-8 text-white border-none rounded-full px-6 py-3.5 text-sm font-bold cursor-pointer shadow-lg flex items-center gap-2 z-50 hover:-translate-y-0.5 hover:shadow-xl transition-all">
         🖨️ Save as PDF
     </button>
 
