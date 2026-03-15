@@ -205,8 +205,8 @@ class RunCypressTestJob implements ShouldQueue
             $envString .= "{$key}=" . escapeshellarg($value) . ' ';
         }
 
-        // Build cypress command
-        $specPattern = $suite->spec_pattern;
+        // Build cypress command — spec_override targets only failing specs from a previous run
+        $specPattern = $this->run->spec_override ?? $suite->spec_pattern;
         // Merge stderr into stdout so we capture everything on one pipe
         $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . ' 2>&1';
 

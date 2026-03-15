@@ -24,6 +24,8 @@ class TestRun extends Model
         'error_message',
         'report_html_path',
         'merged_json_path',
+        'spec_override',
+        'parent_run_id',
         'started_at',
         'finished_at',
     ];

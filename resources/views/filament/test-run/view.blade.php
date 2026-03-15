@@ -8,6 +8,22 @@
         class="flex flex-col gap-6"
     >
 
+        {{-- Partial Re-run Callout --}}
+        @if($record->spec_override)
+        <div class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 px-4 py-3 flex items-start gap-3">
+            <span class="text-amber-500 mt-0.5">⚡</span>
+            <div>
+                <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Partial re-run — failed specs only</p>
+                <p class="text-xs text-amber-600 dark:text-amber-400 font-mono mt-0.5">{{ $record->spec_override }}</p>
+                @if($record->parent_run_id)
+                    <a href="{{ \App\Filament\Resources\TestRunResource::getUrl('view', ['record' => $record->parent_run_id]) }}" class="text-xs text-amber-700 dark:text-amber-300 underline hover:no-underline mt-1 inline-block">
+                        ← View original run #{{ $record->parent_run_id }}
+                    </a>
+                @endif
+            </div>
+        </div>
+        @endif
+
         {{-- Status Bar --}}
         <div class="rounded-xl border p-4 flex items-center justify-between"
              :style="{
@@ -91,6 +107,9 @@
                                         @if($result->suite_title)
                                             <p class="text-xs text-gray-400">{{ $result->suite_title }}</p>
                                         @endif
+                                        @if($result->status === 'failed')
+                                            <a href="{{ \App\Filament\Pages\TestHistory::getUrl(['project' => $record->project_id, 'spec' => urlencode($result->spec_file), 'title' => urlencode($result->full_title)]) }}" class="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full !bg-blue-600 !text-white text-xs font-semibold hover:!bg-blue-700 transition shadow-sm">📈 History</a>
+                                        @endif
                                         @if($result->error_message)
                                             <p class="text-xs text-red-500 mt-1 font-mono bg-red-50 dark:bg-red-950 px-2 py-1 rounded">
                                                 {{ Str::limit($result->error_message, 120) }}
@@ -99,14 +118,14 @@
                                         @if($result->screenshot_urls)
                                             <div class="flex gap-1 mt-1 flex-wrap">
                                                 @foreach($result->screenshot_urls as $url)
-                                                    <button @click="openMedia('image', '{{ $url }}')" class="focus:outline-none">
-                                                        <img src="{{ $url }}" class="h-12 rounded border hover:ring-2 hover:ring-blue-400 transition" alt="Screenshot">
+                                                    <button onclick="openLightbox('image', '{{ $url }}')" class="focus:outline-none">
+                                                        <img src="{{ $url }}" class="h-10 rounded border hover:ring-2 hover:ring-blue-400 transition cursor-zoom-in" alt="Screenshot">
                                                     </button>
                                                 @endforeach
                                             </div>
                                         @endif
                                         @if($result->video_url)
-                                            <button @click="openMedia('video', '{{ $result->video_url }}')" class="mt-1 inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700">
+                                            <button onclick="openLightbox('video', '{{ $result->video_url }}')" class="mt-1 inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700">
                                                 🎬 Watch video
                                             </button>
                                         @endif
@@ -136,41 +155,58 @@
             <div class="divide-y divide-red-100 dark:divide-red-900">
                 @foreach($record->testResults->where('status', 'failed') as $result)
                     <div class="p-4">
+                        {{-- Title row --}}
                         <div class="flex items-start justify-between gap-4">
-                            <div class="flex-1">
-                                <p class="font-medium text-sm text-red-800 dark:text-red-200">{{ $result->full_title }}</p>
-                                <p class="text-xs text-gray-500 font-mono mt-0.5">{{ $result->spec_file }}</p>
-                                @if($result->error_message)
-                                    <div class="mt-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded p-3">
-                                        <p class="text-xs font-mono text-red-700 dark:text-red-300">{{ $result->error_message }}</p>
-                                    </div>
-                                @endif
-                                @if($result->error_stack)
-                                    <details class="mt-2">
-                                        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Stack trace</summary>
-                                        <pre class="mt-1 text-xs font-mono text-gray-500 overflow-x-auto bg-gray-50 dark:bg-gray-900 p-2 rounded">{{ $result->error_stack }}</pre>
-                                    </details>
-                                @endif
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <p class="font-medium text-sm text-red-800 dark:text-red-200 truncate">{{ $result->full_title }}</p>
+                                    @if(isset($flakyTestTitles) && in_array($result->full_title, $flakyTestTitles))
+                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 shrink-0">⚠ Flaky</span>
+                                    @endif
+                                </div>
+                                <p class="text-xs text-gray-500 font-mono truncate mt-0.5">{{ $result->spec_file }}</p>
+                                <div class="mt-2">
+                                    <a href="{{ \App\Filament\Pages\TestHistory::getUrl(['project' => $record->project_id, 'spec' => urlencode($result->spec_file), 'title' => urlencode($result->full_title)]) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold !bg-blue-600 !text-white border border-blue-700 hover:!bg-blue-700 transition shadow-sm">
+                                        📈 View History
+                                    </a>
+                                </div>
                             </div>
-                            <div class="shrink-0 text-right">
-                                <p class="text-xs text-gray-400">{{ $result->duration_formatted }}</p>
+                            <p class="text-xs text-gray-400 shrink-0">{{ $result->duration_formatted }}</p>
+                        </div>
+
+                        {{-- Error message --}}
+                        @if($result->error_message)
+                            <div class="mt-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded p-3">
+                                <p class="text-xs font-mono text-red-700 dark:text-red-300">{{ $result->error_message }}</p>
+                            </div>
+                        @endif
+
+                        {{-- Stack trace --}}
+                        @if($result->error_stack)
+                            <details class="mt-2">
+                                <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300">Stack trace</summary>
+                                <pre class="mt-1 text-xs font-mono text-gray-500 overflow-x-auto bg-gray-50 dark:bg-gray-900 p-2 rounded">{{ $result->error_stack }}</pre>
+                            </details>
+                        @endif
+
+                        {{-- Screenshots & video inline --}}
+                        @if($result->screenshot_urls || $result->video_url)
+                            <div class="mt-2 flex items-center gap-2 flex-wrap">
                                 @if($result->screenshot_urls)
-                                    <div class="mt-2 flex gap-1 justify-end flex-wrap">
-                                        @foreach($result->screenshot_urls as $url)
-                                            <button @click="openMedia('image', '{{ $url }}')" class="focus:outline-none">
-                                                <img src="{{ $url }}" class="h-20 rounded border shadow hover:ring-2 hover:ring-blue-400 transition cursor-zoom-in" alt="Failure screenshot">
-                                            </button>
-                                        @endforeach
-                                    </div>
+                                    @foreach($result->screenshot_urls as $url)
+                                        <button onclick="openLightbox('image', '{{ $url }}')" class="focus:outline-none group">
+                                            <img src="{{ $url }}" class="h-10 rounded border group-hover:ring-2 group-hover:ring-blue-400 transition cursor-zoom-in" alt="Failure screenshot">
+                                        </button>
+                                    @endforeach
                                 @endif
                                 @if($result->video_url)
-                                    <button @click="openMedia('video', '{{ $result->video_url }}')"
-                                       class="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded bg-blue-50 dark:bg-blue-950 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition">
+                                    <button onclick="openLightbox('video', '{{ $result->video_url }}')"
+                                       class="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 dark:bg-blue-950 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition">
                                         🎬 Watch video
                                     </button>
                                 @endif
                             </div>
-                        </div>
+                        @endif
                     </div>
                 @endforeach
             </div>
@@ -197,33 +233,62 @@
             </div>
         </div>
 
-        {{-- Lightbox Modal --}}
-        <div
-            x-show="lightbox.open"
-            x-transition.opacity
-            x-cloak
-            @keydown.escape.window="closeMedia()"
-            @click.self="closeMedia()"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-        >
-            <div class="relative max-w-5xl w-full max-h-[90vh] flex flex-col">
-                <button @click="closeMedia()" class="absolute -top-10 right-0 text-white text-sm hover:text-gray-300 flex items-center gap-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    Close
-                </button>
-                <template x-if="lightbox.type === 'image'">
-                    <img :src="lightbox.url" class="rounded-lg max-h-[85vh] object-contain mx-auto shadow-2xl" alt="Screenshot">
-                </template>
-                <template x-if="lightbox.type === 'video'">
-                    <video :src="lightbox.url" controls autoplay class="rounded-lg max-h-[85vh] w-full shadow-2xl bg-black"></video>
-                </template>
-            </div>
-        </div>
+        {{-- Lightbox is injected into document.body via JS to escape Filament's CSS transform context --}}
 
     </div>
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/ansi_up@6/ansi_up.min.js"></script>
+    <script>
+        // Lightbox appended to body so it escapes any CSS transform/stacking context in Filament
+        function openLightbox(type, url) {
+            closeLightbox(); // remove any existing instance
+
+            const overlay = document.createElement('div');
+            overlay.id = 'run-lightbox';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1.5rem;';
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) closeLightbox(); });
+
+            const inner = document.createElement('div');
+            inner.style.cssText = 'position:relative;max-width:90vw;max-height:90vh;';
+
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = '&#x2715;';
+            closeBtn.style.cssText = 'position:absolute;top:-2.5rem;right:0;background:none;border:none;color:white;font-size:2rem;cursor:pointer;opacity:0.8;line-height:1;padding:0;';
+            closeBtn.addEventListener('mouseenter', () => closeBtn.style.opacity = '1');
+            closeBtn.addEventListener('mouseleave', () => closeBtn.style.opacity = '0.8');
+            closeBtn.addEventListener('click', closeLightbox);
+
+            let media;
+            if (type === 'image') {
+                media = document.createElement('img');
+                media.src = url;
+                media.alt = 'Screenshot';
+                media.style.cssText = 'max-width:90vw;max-height:85vh;border-radius:8px;box-shadow:0 25px 50px rgba(0,0,0,.6);display:block;background:#000;';
+            } else {
+                media = document.createElement('video');
+                media.src = url;
+                media.controls = true;
+                media.autoplay = true;
+                media.style.cssText = 'max-width:90vw;max-height:85vh;border-radius:8px;box-shadow:0 25px 50px rgba(0,0,0,.6);display:block;background:#000;width:100%;';
+            }
+
+            inner.appendChild(closeBtn);
+            inner.appendChild(media);
+            overlay.appendChild(inner);
+            document.body.appendChild(overlay);
+        }
+
+        function closeLightbox() {
+            const lb = document.getElementById('run-lightbox');
+            if (!lb) return;
+            const video = lb.querySelector('video');
+            if (video) video.pause();
+            lb.remove();
+        }
+
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+    </script>
     <script>
         function testRunViewer(runId, initialStatus, initiallyRunning, initialLog) {
             return {
@@ -251,11 +316,6 @@
                     // Explicit <br> so line breaks survive innerHTML assignment
                     return html.replace(/\n/g, '<br>');
                 },
-
-                // Media lightbox
-                lightbox: { open: false, type: null, url: null },
-                openMedia(type, url) { this.lightbox = { open: true, type, url }; },
-                closeMedia() { this.lightbox.open = false; },
 
                 get statusLabel() {
                     const labels = {

@@ -208,6 +208,28 @@ class TestRunResource extends Resource
                             ->send();
                     }),
             ])
+            ->bulkActions([
+                Tables\Actions\BulkAction::make('compare')
+                    ->label('Compare 2 Runs')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(function ($records, \Livewire\Component $livewire) {
+                        $ids = $records->pluck('id')->values();
+
+                        if ($ids->count() !== 2) {
+                            Notification::make()
+                                ->title('Select exactly 2 runs to compare')
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+
+                        return redirect(\App\Filament\Pages\CompareRuns::getUrl([
+                            'run_a' => $ids[0],
+                            'run_b' => $ids[1],
+                        ]));
+                    }),
+            ])
             ->actions([
                 Tables\Actions\Action::make('view')
                     ->label('View')

@@ -3,11 +3,12 @@
 namespace App\Filament\Resources\TestRunResource\Pages;
 
 use App\Filament\Resources\TestRunResource;
+use App\Models\TestResult;
 use App\Models\TestRun;
 use App\Services\ReportGeneratorService;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\DB;
 
 class ViewTestRun extends ViewRecord
 {
@@ -22,6 +23,35 @@ class ViewTestRun extends ViewRecord
     public function getSubheading(): ?string
     {
         return "Suite: {$this->record->testSuite->name} · Branch: {$this->record->branch}";
+    }
+
+    protected function getViewData(): array
+    {
+        // Compute flaky test titles for this project so the blade can badge them
+        $failedTitles = $this->record->testResults
+            ->where('status', 'failed')
+            ->pluck('full_title')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $flakyTestTitles = [];
+
+        if (!empty($failedTitles)) {
+            $flakyTestTitles = DB::table('test_results as tr')
+                ->join('test_runs', 'test_runs.id', '=', 'tr.test_run_id')
+                ->where('test_runs.project_id', $this->record->project_id)
+                ->whereIn('tr.full_title', $failedTitles)
+                ->whereIn('tr.status', ['passed', 'failed'])
+                ->groupBy('tr.full_title')
+                ->havingRaw('COUNT(*) >= 3')
+                ->havingRaw('SUM(CASE WHEN tr.status = \'passed\' THEN 1 ELSE 0 END) > 0')
+                ->havingRaw('SUM(CASE WHEN tr.status = \'failed\' THEN 1 ELSE 0 END) > 0')
+                ->pluck('tr.full_title')
+                ->toArray();
+        }
+
+        return ['flakyTestTitles' => $flakyTestTitles];
     }
 
     public function pollStatus(): void
@@ -108,6 +138,7 @@ class ViewTestRun extends ViewRecord
                         'triggered_by'  => auth()->id(),
                         'status'        => TestRun::STATUS_PENDING,
                         'branch'        => $this->record->branch,
+                        'parent_run_id' => $this->record->id,
                     ]);
 
                     \App\Jobs\RunCypressTestJob::dispatch($newRun);
@@ -119,6 +150,71 @@ class ViewTestRun extends ViewRecord
                         ->send();
 
                     $this->redirect(ViewTestRun::getUrl(['record' => $newRun]));
+                }),
+
+            Actions\Action::make('re_run_failures')
+                ->label('Re-run Failures')
+                ->icon('heroicon-o-bug-ant')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Re-run failed tests only?')
+                ->modalDescription('A new run will be created targeting only the spec files that had failures. Passing specs will be skipped.')
+                ->visible(fn () => $this->record->isComplete() && $this->record->failed_tests > 0)
+                ->action(function () {
+                    $failingSpecs = $this->record->testResults
+                        ->where('status', 'failed')
+                        ->pluck('spec_file')
+                        ->unique()
+                        ->values()
+                        ->join(',');
+
+                    $newRun = TestRun::create([
+                        'project_id'    => $this->record->project_id,
+                        'test_suite_id' => $this->record->test_suite_id,
+                        'triggered_by'  => auth()->id(),
+                        'status'        => TestRun::STATUS_PENDING,
+                        'branch'        => $this->record->branch,
+                        'spec_override' => $failingSpecs,
+                        'parent_run_id' => $this->record->id,
+                    ]);
+
+                    \App\Jobs\RunCypressTestJob::dispatch($newRun);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Re-run failures queued!')
+                        ->body("Run #{$newRun->id} will only execute the failing specs.")
+                        ->success()
+                        ->send();
+
+                    $this->redirect(ViewTestRun::getUrl(['record' => $newRun]));
+                }),
+
+            Actions\Action::make('compare')
+                ->label('Compare')
+                ->icon('heroicon-o-arrows-right-left')
+                ->color('gray')
+                ->visible(fn () => $this->record->isComplete())
+                ->form([
+                    \Filament\Forms\Components\Select::make('compare_run_id')
+                        ->label('Compare with run')
+                        ->options(fn () => TestRun::where('project_id', $this->record->project_id)
+                            ->where('id', '!=', $this->record->id)
+                            ->whereIn('status', ['passing', 'failed'])
+                            ->orderByDesc('created_at')
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn ($r) => [$r->id => "#{$r->id} · {$r->branch} · {$r->status} · {$r->created_at->diffForHumans()}"])
+                        )
+                        ->required()
+                        ->searchable(),
+                ])
+                ->action(function (array $data) {
+                    $this->redirect(
+                        \App\Filament\Pages\CompareRuns::getUrl([
+                            'run_a' => $this->record->id,
+                            'run_b' => $data['compare_run_id'],
+                        ])
+                    );
                 }),
         ];
     }
