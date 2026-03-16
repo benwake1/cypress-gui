@@ -21,6 +21,8 @@ class TestRunResource extends Resource
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationLabel = 'Test Runs';
 
+    // All authenticated users (admin + pm) may view test runs.
+    public static function canViewAny(): bool { return auth()->check(); }
     public static function canCreate(): bool { return false; } // created via trigger action only
     public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool { return false; }
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool { return auth()->user()?->isAdmin() ?? false; }

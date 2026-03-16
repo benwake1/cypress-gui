@@ -162,14 +162,14 @@
                                         @if($result->screenshot_urls)
                                             <div class="flex gap-1 mt-1 flex-wrap">
                                                 @foreach($result->screenshot_urls as $url)
-                                                    <button onclick="openLightbox('image', '{{ $url }}')" class="focus:outline-none">
+                                                    <button type="button" data-lightbox-type="image" data-lightbox-url="{{ $url }}" onclick="openLightbox(this.dataset.lightboxType, this.dataset.lightboxUrl)" class="focus:outline-none">
                                                         <img src="{{ $url }}" class="h-10 rounded border hover:ring-2 hover:ring-blue-400 transition cursor-zoom-in" alt="Screenshot">
                                                     </button>
                                                 @endforeach
                                             </div>
                                         @endif
                                         @if($result->video_url)
-                                            <button onclick="openLightbox('video', '{{ $result->video_url }}')" class="mt-1 inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700">
+                                            <button type="button" data-lightbox-type="video" data-lightbox-url="{{ $result->video_url }}" onclick="openLightbox(this.dataset.lightboxType, this.dataset.lightboxUrl)" class="mt-1 inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700">
                                                 🎬 Watch video
                                             </button>
                                         @endif
@@ -250,13 +250,13 @@
                             <div class="mt-2 flex items-center gap-2 flex-wrap">
                                 @if($result->screenshot_urls)
                                     @foreach($result->screenshot_urls as $url)
-                                        <button onclick="openLightbox('image', '{{ $url }}')" class="focus:outline-none group">
+                                        <button type="button" data-lightbox-type="image" data-lightbox-url="{{ $url }}" onclick="openLightbox(this.dataset.lightboxType, this.dataset.lightboxUrl)" class="focus:outline-none group">
                                             <img src="{{ $url }}" class="h-10 rounded border group-hover:ring-2 group-hover:ring-blue-400 transition cursor-zoom-in" alt="Failure screenshot">
                                         </button>
                                     @endforeach
                                 @endif
                                 @if($result->video_url)
-                                    <button onclick="openLightbox('video', '{{ $result->video_url }}')"
+                                    <button type="button" data-lightbox-type="video" data-lightbox-url="{{ $result->video_url }}" onclick="openLightbox(this.dataset.lightboxType, this.dataset.lightboxUrl)"
                                        class="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 dark:bg-blue-950 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition">
                                         🎬 Watch video
                                     </button>
@@ -362,13 +362,23 @@
                     }
                     return this._ansiUp;
                 },
+                escapeHtml(text) {
+                    return text
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                },
                 ansiToHtml(text) {
                     const au = this.getAnsiUp();
                     // Normalise line endings (\r\n and bare \r → \n)
                     const normalised = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                    // AnsiUp v5+ HTML-escapes content internally (safe).
+                    // Fallback: manually escape to prevent XSS before stripping ANSI codes.
                     const html = au
                         ? au.ansi_to_html(normalised)
-                        : normalised.replace(/\x1b\[[0-9;]*m/g, '');
+                        : this.escapeHtml(normalised).replace(/\x1b\[[0-9;]*m/g, '');
                     // Explicit <br> so line breaks survive innerHTML assignment
                     return html.replace(/\n/g, '<br>');
                 },
@@ -426,7 +436,8 @@
                     // Connect to Laravel Reverb via Echo for real-time updates
                     if (typeof window.Echo === 'undefined') return;
 
-                    window.Echo.channel(`test-run.${this.runId}`)
+                    // private() is required — channels are now PrivateChannel server-side.
+                    window.Echo.private(`test-run.${this.runId}`)
                         .listen('.log.received', (e) => {
                             const container = this.$refs.logContainer;
                             if (container) {

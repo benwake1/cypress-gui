@@ -23,6 +23,12 @@ class TestHistory extends Page implements HasTable
     protected static bool $shouldRegisterNavigation = false;
     protected static string $view = 'filament.pages.test-history';
 
+    // All authenticated dashboard users (admin + pm) may view test history.
+    public static function canAccess(): bool
+    {
+        return auth()->check();
+    }
+
     public ?int $projectId = null;
     public ?string $specFile = null;
     public ?string $fullTitle = null;
@@ -32,6 +38,11 @@ class TestHistory extends Page implements HasTable
         $this->projectId = request()->integer('project') ?: null;
         $this->specFile  = request()->string('spec') ? urldecode(request()->string('spec')) : null;
         $this->fullTitle = request()->string('title') ? urldecode(request()->string('title')) : null;
+
+        // Verify the project exists — prevents silent empty pages on invalid/guessed IDs.
+        if ($this->projectId && !Project::find($this->projectId)) {
+            abort(404);
+        }
     }
 
     public function table(Table $table): Table

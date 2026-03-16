@@ -47,7 +47,8 @@ class ReportController
             abort(403, 'This report link has expired.');
         }
 
-        $expectedToken = hash_hmac('sha256', "report-{$testRun->id}-{$expiry}", config('app.key'));
+        $shareKey = hash_hmac('sha256', 'report-share-v1', config('app.key'));
+        $expectedToken = hash_hmac('sha256', "report-{$testRun->id}-{$expiry}", $shareKey);
 
         if (!hash_equals($expectedToken, $token)) {
             abort(403, 'Invalid or expired report link.');

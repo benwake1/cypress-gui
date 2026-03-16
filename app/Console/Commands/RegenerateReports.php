@@ -13,18 +13,20 @@ class RegenerateReports extends Command
 
     public function handle(ReportGeneratorService $reporter): int
     {
-        $runs = TestRun::whereIn('status', ['passing', 'failed', 'error'])->get();
+        $count = TestRun::whereIn('status', ['passing', 'failed', 'error'])->count();
+        $this->info("Regenerating reports for {$count} run(s)...");
 
-        $this->info("Regenerating reports for {$runs->count()} run(s)...");
-
-        foreach ($runs as $run) {
-            try {
-                $reporter->generateHtmlReport($run);
-                $this->line("  ✓ Run #{$run->id}");
-            } catch (\Throwable $e) {
-                $this->warn("  ✗ Run #{$run->id}: {$e->getMessage()}");
-            }
-        }
+        TestRun::whereIn('status', ['passing', 'failed', 'error'])
+            ->chunkById(50, function ($runs) use ($reporter) {
+                foreach ($runs as $run) {
+                    try {
+                        $reporter->generateHtmlReport($run);
+                        $this->line("  ✓ Run #{$run->id}");
+                    } catch (\Throwable $e) {
+                        $this->warn("  ✗ Run #{$run->id}: {$e->getMessage()}");
+                    }
+                }
+            });
 
         $this->info('Done.');
         return self::SUCCESS;

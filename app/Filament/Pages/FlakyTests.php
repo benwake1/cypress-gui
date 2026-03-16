@@ -23,6 +23,12 @@ class FlakyTests extends Page implements HasTable
     protected static ?int $navigationSort = 2;
     protected static string $view = 'filament.pages.flaky-tests';
 
+    // All authenticated dashboard users (admin + pm) may view test analytics.
+    public static function canAccess(): bool
+    {
+        return auth()->check();
+    }
+
     public ?int $projectFilter = null;
     public int $minScore = 0;
 
@@ -50,6 +56,23 @@ class FlakyTests extends Page implements HasTable
     {
         $sql = $this->flakyScoreSql;
 
+        // Correlated subquery: fetch last 10 run statuses per test in one DB round-trip,
+        // eliminating the N+1 that buildDotsHtml() previously caused.
+        $recentStatusesSql = "(
+            SELECT GROUP_CONCAT(rs.status)
+            FROM (
+                SELECT tr2.status
+                FROM test_results tr2
+                INNER JOIN test_runs runs2 ON runs2.id = tr2.test_run_id
+                WHERE runs2.project_id = projects.id
+                  AND tr2.full_title = test_results.full_title
+                  AND tr2.spec_file  = test_results.spec_file
+                  AND tr2.status IN ('passed', 'failed')
+                ORDER BY tr2.created_at DESC
+                LIMIT 10
+            ) rs
+        ) as recent_statuses";
+
         $query = TestResult::query()
             ->join('test_runs', 'test_runs.id', '=', 'test_results.test_run_id')
             ->join('projects', 'projects.id', '=', 'test_runs.project_id')
@@ -65,6 +88,7 @@ class FlakyTests extends Page implements HasTable
                 DB::raw("SUM(CASE WHEN test_results.status = 'failed' THEN 1 ELSE 0 END) as fail_count"),
                 DB::raw("{$sql} as flaky_score"),
                 DB::raw('MAX(test_results.created_at) as last_seen'),
+                DB::raw($recentStatusesSql),
             ])
             ->groupBy('test_results.spec_file', 'test_results.full_title', 'projects.id', 'projects.name')
             ->havingRaw('COUNT(*) >= 3')
@@ -111,11 +135,7 @@ class FlakyTests extends Page implements HasTable
                     }),
                 TextColumn::make('recent_runs')
                     ->label('Last 10 Runs')
-                    ->state(fn ($record) => $this->buildDotsHtml(
-                        $record->full_title,
-                        $record->spec_file,
-                        $record->project_id
-                    ))
+                    ->state(fn ($record) => $this->buildDotsHtml($record->recent_statuses ?? ''))
                     ->html(),
                 TextColumn::make('last_seen')
                     ->label('Last Seen')
@@ -140,23 +160,23 @@ class FlakyTests extends Page implements HasTable
             ->paginated(false);
     }
 
-    private function buildDotsHtml(string $fullTitle, string $specFile, int $projectId): string
+    /**
+     * Build dot-indicator HTML from a comma-separated status string.
+     * The string is produced by the correlated subquery in table() — no extra DB query needed.
+     */
+    private function buildDotsHtml(string $recentStatuses): string
     {
-        $results = DB::table('test_results as tr')
-            ->join('test_runs', 'test_runs.id', '=', 'tr.test_run_id')
-            ->where('test_runs.project_id', $projectId)
-            ->where('tr.full_title', $fullTitle)
-            ->where('tr.spec_file', $specFile)
-            ->whereIn('tr.status', ['passed', 'failed'])
-            ->orderByDesc('tr.created_at')
-            ->limit(10)
-            ->pluck('tr.status')
-            ->toArray();
+        if ($recentStatuses === '') {
+            return '<div class="flex items-center gap-0.5"></div>';
+        }
+
+        // GROUP_CONCAT returns newest-first; reverse so oldest is on the left.
+        $statuses = array_reverse(explode(',', $recentStatuses));
 
         $html = '<div class="flex items-center gap-0.5">';
-        foreach (array_reverse($results) as $status) {
+        foreach ($statuses as $status) {
             $color = $status === 'passed' ? 'bg-green-400' : 'bg-red-400';
-            $html .= '<span class="inline-block w-3 h-3 rounded-full ' . $color . '" title="' . $status . '"></span>';
+            $html .= '<span class="inline-block w-3 h-3 rounded-full ' . $color . '" title="' . htmlspecialchars($status) . '"></span>';
         }
         $html .= '</div>';
 

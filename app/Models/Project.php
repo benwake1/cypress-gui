@@ -116,9 +116,12 @@ class Project extends Model
 
     public function getPassRateAttribute(): float
     {
-        $total = $this->testRuns()->whereIn('status', ['passing', 'failed'])->count();
-        if ($total === 0) return 0;
-        $passed = $this->testRuns()->where('status', 'passing')->count();
-        return round(($passed / $total) * 100, 1);
+        $counts = $this->testRuns()
+            ->whereIn('status', ['passing', 'failed'])
+            ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status = 'passing' THEN 1 ELSE 0 END) as passed")
+            ->first();
+
+        if (!$counts || (int) $counts->total === 0) return 0.0;
+        return round(((int) $counts->passed / (int) $counts->total) * 100, 1);
     }
 }

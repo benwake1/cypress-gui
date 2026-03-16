@@ -17,21 +17,24 @@ class CleanupOldArtifacts extends Command
         $dryRun = $this->option('dry-run');
         $cutoff = now()->subDays($days);
 
-        $runs = TestRun::whereIn('status', ['passing', 'failed', 'error', 'cancelled'])
+        $query = TestRun::whereIn('status', ['passing', 'failed', 'error', 'cancelled'])
             ->where('created_at', '<', $cutoff)
-            ->whereNotNull('report_html_path')
-            ->get();
+            ->whereNotNull('report_html_path');
 
-        if ($runs->isEmpty()) {
+        $count = $query->count();
+
+        if ($count === 0) {
             $this->info("No runs older than {$days} days with artifacts to clean up.");
             return self::SUCCESS;
         }
 
-        $this->info(($dryRun ? '[DRY RUN] ' : '') . "Found {$runs->count()} run(s) older than {$days} days.");
+        $this->info(($dryRun ? '[DRY RUN] ' : '') . "Found {$count} run(s) older than {$days} days.");
         $this->newLine();
 
         $totalFreed = 0;
 
+        // chunkById avoids loading all rows into memory at once.
+        $query->chunkById(50, function ($runs) use ($dryRun, &$totalFreed) {
         foreach ($runs as $run) {
             $this->line("  Run #{$run->id} — {$run->created_at->format('d M Y')}");
 
@@ -63,6 +66,7 @@ class CleanupOldArtifacts extends Command
                 // Null out paths on the run
                 $run->update([
                     'report_html_path' => null,
+                    'merged_json_path' => null,
                 ]);
 
                 // Null out media paths on individual results
@@ -72,6 +76,8 @@ class CleanupOldArtifacts extends Command
                 ]);
             }
         }
+
+        }); // end chunkById
 
         $this->newLine();
         $action = $dryRun ? 'Would free' : 'Freed';

@@ -15,6 +15,12 @@ class CompareRuns extends Page
     protected static bool $shouldRegisterNavigation = false;
     protected static string $view = 'filament.pages.compare-runs';
 
+    // All authenticated dashboard users (admin + pm) may compare runs.
+    public static function canAccess(): bool
+    {
+        return auth()->check();
+    }
+
     public ?int $runAId = null;
     public ?int $runBId = null;
     public string $changeFilter = 'all';
@@ -23,6 +29,14 @@ class CompareRuns extends Page
     {
         $this->runAId = request()->integer('run_a') ?: null;
         $this->runBId = request()->integer('run_b') ?: null;
+
+        // Verify both runs exist — prevents silent empty pages on invalid/guessed IDs.
+        if ($this->runAId && !TestRun::find($this->runAId)) {
+            abort(404);
+        }
+        if ($this->runBId && !TestRun::find($this->runBId)) {
+            abort(404);
+        }
     }
 
     public function getRunA(): ?TestRun
@@ -35,10 +49,22 @@ class CompareRuns extends Page
         return $this->runBId ? TestRun::with(['project'])->find($this->runBId) : null;
     }
 
-    public function getComparison(): array
+    /** Memoised cache of the full (unfiltered) comparison result set. */
+    private ?array $allComparisonCache = null;
+
+    /**
+     * Load and memoize all comparison rows regardless of the active filter.
+     * This ensures a single DB round-trip no matter how many times the data
+     * is accessed within a single render (getSummary + getComparison both call this).
+     */
+    private function loadAllComparison(): array
     {
+        if ($this->allComparisonCache !== null) {
+            return $this->allComparisonCache;
+        }
+
         if (!$this->runAId || !$this->runBId) {
-            return [];
+            return $this->allComparisonCache = [];
         }
 
         $resultsA = TestResult::where('test_run_id', $this->runAId)
@@ -82,16 +108,25 @@ class CompareRuns extends Page
             default         => 5,
         })->values()->toArray();
 
-        if ($this->changeFilter !== 'all') {
-            $rows = array_values(array_filter($rows, fn ($r) => $r['change'] === $this->changeFilter));
-        }
-
-        return $rows;
+        return $this->allComparisonCache = $rows;
     }
 
+    /** Returns rows filtered by the active changeFilter (for the results table). */
+    public function getComparison(): array
+    {
+        $all = $this->loadAllComparison();
+
+        if ($this->changeFilter !== 'all') {
+            return array_values(array_filter($all, fn ($r) => $r['change'] === $this->changeFilter));
+        }
+
+        return $all;
+    }
+
+    /** Returns totals across ALL change types — always unaffected by the active filter. */
     public function getSummary(): array
     {
-        $all = $this->getComparison();
+        $all = $this->loadAllComparison();
 
         return [
             'regressions'    => count(array_filter($all, fn ($r) => $r['change'] === 'regression')),

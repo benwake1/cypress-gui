@@ -131,7 +131,9 @@ class TestRun extends Model
         if (!$this->report_html_path) return null;
 
         $expiry = now()->addDays(30)->timestamp;
-        $token = hash_hmac('sha256', "report-{$this->id}-{$expiry}", config('app.key'));
+        // Derive a dedicated sub-key so rotating share tokens never forces an APP_KEY rotation.
+        $shareKey = hash_hmac('sha256', 'report-share-v1', config('app.key'));
+        $token = hash_hmac('sha256', "report-{$this->id}-{$expiry}", $shareKey);
 
         return route('reports.share', ['testRun' => $this->id, 'token' => $token, 'expires' => $expiry]);
     }
