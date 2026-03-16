@@ -8,6 +8,7 @@ use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 
 class SettingsPage extends Page
@@ -35,7 +36,7 @@ class SettingsPage extends Page
             'mail_host'              => AppSetting::get('mail_host', config('mail.mailers.smtp.host')),
             'mail_port'              => AppSetting::get('mail_port', config('mail.mailers.smtp.port')),
             'mail_username'          => AppSetting::get('mail_username', config('mail.mailers.smtp.username')),
-            'mail_password'          => AppSetting::get('mail_password', ''),
+            'mail_password'          => $this->getMailPassword(),
             'mail_encryption'        => AppSetting::get('mail_encryption', config('mail.mailers.smtp.encryption')),
         ]);
     }
@@ -153,7 +154,7 @@ class SettingsPage extends Page
         AppSetting::set('mail_host', $data['mail_host'] ?? '');
         AppSetting::set('mail_port', $data['mail_port'] ?? '');
         AppSetting::set('mail_username', $data['mail_username'] ?? '');
-        AppSetting::set('mail_password', $data['mail_password'] ?? '');
+        $this->setMailPassword($data['mail_password'] ?? '');
         AppSetting::set('mail_encryption', $data['mail_encryption'] ?? '');
 
         Notification::make()
@@ -176,10 +177,33 @@ class SettingsPage extends Page
         ];
 
         foreach ($map as $setting => $configKey) {
-            $value = AppSetting::get($setting);
+            $value = $setting === 'mail_password'
+                ? $this->getMailPassword()
+                : AppSetting::get($setting);
+
             if ($value !== null && $value !== '') {
                 Config::set($configKey, $value);
             }
         }
+    }
+
+    // ── Helpers: encrypted SMTP credential storage ───────────────────────────
+
+    private function getMailPassword(): string
+    {
+        $stored = AppSetting::get('mail_password', '');
+        if (!$stored) return '';
+        try {
+            return Crypt::decryptString($stored);
+        } catch (\Exception) {
+            // Value was stored unencrypted before this change — return as-is
+            // and it will be re-encrypted on next save.
+            return $stored;
+        }
+    }
+
+    private function setMailPassword(string $value): void
+    {
+        AppSetting::set('mail_password', $value !== '' ? Crypt::encryptString($value) : '');
     }
 }

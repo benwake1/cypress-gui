@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\TestResult;
 use App\Models\TestRun;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class MochawesomeParserService
@@ -20,23 +21,25 @@ class MochawesomeParserService
             throw new \RuntimeException('Failed to parse mochawesome JSON');
         }
 
-        // Update run stats from the stats block
-        $stats = $data['stats'] ?? [];
-        $run->update([
-            'total_tests' => $stats['tests'] ?? 0,
-            'passed_tests' => $stats['passes'] ?? 0,
-            'failed_tests' => $stats['failures'] ?? 0,
-            'pending_tests' => $stats['pending'] ?? 0,
-            'duration_ms' => $stats['duration'] ?? null,
-            'status' => ($stats['failures'] ?? 0) > 0 ? TestRun::STATUS_FAILED : TestRun::STATUS_PASSING,
-            'finished_at' => now(),
-        ]);
+        // All DB writes wrapped in a transaction so a mid-parse failure leaves no
+        // partial results — the run stays in its previous state and can be retried.
+        DB::transaction(function () use ($run, $data) {
+            $stats = $data['stats'] ?? [];
+            $run->update([
+                'total_tests'   => $stats['tests']    ?? 0,
+                'passed_tests'  => $stats['passes']   ?? 0,
+                'failed_tests'  => $stats['failures'] ?? 0,
+                'pending_tests' => $stats['pending']  ?? 0,
+                'duration_ms'   => $stats['duration'] ?? null,
+                'status'        => ($stats['failures'] ?? 0) > 0 ? TestRun::STATUS_FAILED : TestRun::STATUS_PASSING,
+                'finished_at'   => now(),
+            ]);
 
-        // Parse each result (spec file) and its suites/tests
-        foreach ($data['results'] ?? [] as $result) {
-            $specFile = $result['file'] ?? 'unknown';
-            $this->parseResult($run, $result, $specFile);
-        }
+            foreach ($data['results'] ?? [] as $result) {
+                $specFile = $result['file'] ?? 'unknown';
+                $this->parseResult($run, $result, $specFile);
+            }
+        });
     }
 
     private function parseResult(TestRun $run, array $result, string $specFile): void

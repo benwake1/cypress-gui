@@ -22,6 +22,10 @@ class ProjectHealthWidget extends Widget
     {
         $suite = TestSuite::findOrFail($suiteId);
 
+        // Verify the suite belongs to the given project — prevents cross-project
+        // run triggering by an authenticated user who guesses numeric IDs.
+        abort_if($suite->project_id !== $projectId, 403, 'Suite does not belong to this project.');
+
         $run = TestRun::create([
             'project_id'    => $projectId,
             'test_suite_id' => $suiteId,

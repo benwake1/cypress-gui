@@ -61,13 +61,12 @@ class Client extends Model
 
     public function getPassRateAttribute(): float
     {
-        $runs = TestRun::whereIn('project_id', $this->projects()->pluck('id'))
+        $counts = TestRun::whereIn('project_id', $this->projects()->pluck('id'))
             ->whereIn('status', ['passing', 'failed'])
-            ->get();
+            ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status = 'passing' THEN 1 ELSE 0 END) as passed")
+            ->first();
 
-        if ($runs->isEmpty()) return 0;
-
-        $passed = $runs->where('status', 'passing')->count();
-        return round(($passed / $runs->count()) * 100, 1);
+        if (!$counts || (int) $counts->total === 0) return 0.0;
+        return round(((int) $counts->passed / (int) $counts->total) * 100, 1);
     }
 }

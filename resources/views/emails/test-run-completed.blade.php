@@ -7,13 +7,18 @@
 </head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111827;">
 @php
-    $isPassing    = $run->status === 'passing';
-    $brandColor   = config('brand.primary_color') ?: '#2563eb';
-    $brandName    = config('brand.name') ?: config('app.name');
-    $logoPath     = config('brand.logo_path');
-    $statusBg     = $isPassing ? '#dcfce7' : '#fee2e2';
-    $statusColor  = $isPassing ? '#166534' : '#991b1b';
-    $statusLabel  = $isPassing ? '✅ All Tests Passed' : '❌ Tests Failed';
+    $isPassing      = $run->status === 'passing';
+    $client         = $run->project->client;
+    $brandColor     = $client->primary_colour ?: config('brand.primary_color') ?: '#2563eb';
+    $brandName      = config('brand.name') ?: config('app.name');
+    $appLogoPath    = config('brand.logo_path');
+    $clientLogoPath = $client->logo_path ?? null;
+    $clientBg       = $client->primary_colour ?: '#f3f4f6';
+    $clientTextColor = $client->primary_colour ? '#ffffff' : '#374151';
+    $poweredBy      = config('brand.legal_name') ?: config('brand.name') ?: config('app.name');
+    $statusBg       = $isPassing ? '#dcfce7' : '#fee2e2';
+    $statusColor    = $isPassing ? '#166534' : '#991b1b';
+    $statusLabel    = $isPassing ? '✅ All Tests Passed' : '❌ Tests Failed';
 @endphp
 
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f3f4f6;padding:32px 16px;">
@@ -21,14 +26,34 @@
         <td align="center">
             <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;">
 
-                {{-- Brand header --}}
+                {{-- App logo --}}
                 <tr>
-                    <td style="background:#f3f4f6;border-radius:12px 12px 0 0;padding:24px 32px;text-align:center;">
-                        @if($logoPath)
-                            <img src="{{ asset($logoPath) }}" alt="{{ $brandName }}" style="max-height:40px;width:auto;display:inline-block;">
+                    <td style="background:#f3f4f6;padding:20px 32px 12px;text-align:center;">
+                        @if($appLogoPath)
+                            <img src="{{ asset($appLogoPath) }}" alt="{{ $brandName }}" style="max-height:32px;width:auto;display:inline-block;">
                         @else
-                            <span style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">{{ $brandName }}</span>
+                            <span style="font-size:15px;font-weight:600;color:#6b7280;letter-spacing:-0.01em;">{{ $brandName }}</span>
                         @endif
+                    </td>
+                </tr>
+
+                {{-- Client bar --}}
+                <tr>
+                    <td style="background:{{ $clientBg }};padding:14px 32px;border-radius:12px 12px 0 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                            <tr>
+                                @if($clientLogoPath)
+                                <td width="36" style="vertical-align:middle;padding-right:12px;">
+                                    <img src="{{ asset($clientLogoPath) }}" alt="{{ $client->name }}" style="max-height:32px;width:auto;display:block;">
+                                </td>
+                                @endif
+                                <td style="vertical-align:middle;">
+                                    <span style="font-size:15px;font-weight:700;color:{{ $clientTextColor }};">{{ $client->name }}</span>
+                                    <span style="font-size:15px;color:{{ $clientTextColor }};opacity:0.7;margin:0 6px;">/</span>
+                                    <span style="font-size:15px;color:{{ $clientTextColor }};opacity:0.85;">{{ $run->project->name }}</span>
+                                </td>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
 
@@ -140,11 +165,11 @@
                 <tr>
                     <td style="padding:20px 0;text-align:center;">
                         <p style="margin:0;font-size:12px;color:#9ca3af;">
-                            You are receiving this because you triggered this test run.<br>
+                            You are receiving this because you triggered this test run.
                         </p>
-                        <br />
+                        <br>
                         <p style="margin:0;font-size:12px;color:#9ca3af;">
-                            &copy; {{ date('Y') }} {{ config('brand.legal_name') ?: $brandName }}.<br>
+                            Powered by {{ $poweredBy }}
                         </p>
                     </td>
                 </tr>

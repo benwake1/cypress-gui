@@ -3,8 +3,8 @@
 namespace App\Events;
 
 use App\Models\TestRun;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -12,8 +12,6 @@ use Illuminate\Queue\SerializesModels;
 class TestRunStatusChanged implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
-
-    public int $tries = 1;
 
     public string $status;
 
@@ -26,9 +24,9 @@ class TestRunStatusChanged implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new Channel("test-run.{$this->run->id}"),
-            new Channel("project.{$this->run->project_id}"),
-            new Channel('dashboard'),
+            new PrivateChannel("test-run.{$this->run->id}"),
+            new PrivateChannel("project.{$this->run->project_id}"),
+            new PrivateChannel('dashboard'),
         ];
     }
 

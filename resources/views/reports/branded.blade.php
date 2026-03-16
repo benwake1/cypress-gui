@@ -212,11 +212,15 @@
                                         <img src="{{ $url }}"
                                              class="screenshot-img h-20 rounded-md border border-gray-200 cursor-zoom-in object-cover transition-shadow"
                                              alt="Failure screenshot"
-                                             onclick="openLightbox('image', '{{ $url }}')">
+                                             data-lightbox-type="image"
+                                             data-lightbox-url="{{ $url }}"
+                                             onclick="openLightbox(this.dataset.lightboxType, this.dataset.lightboxUrl)">
                                     @endforeach
                                     @if($result->video_url)
                                         <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md text-xs font-semibold text-blue-700 cursor-pointer hover:bg-blue-100 transition-colors"
-                                                onclick="openLightbox('video', '{{ $result->video_url }}')">
+                                                data-lightbox-type="video"
+                                                data-lightbox-url="{{ $result->video_url }}"
+                                                onclick="openLightbox(this.dataset.lightboxType, this.dataset.lightboxUrl)">
                                             🎬 Watch video
                                         </button>
                                     @endif
@@ -346,11 +350,22 @@
     <script>
         function openLightbox(type, url) {
             const content = document.getElementById('lightbox-content');
+            content.innerHTML = '';
+            const style = 'max-width:90vw;max-height:85vh;border-radius:8px;box-shadow:0 25px 50px rgba(0,0,0,.5);display:block;background:black;';
+            let media;
             if (type === 'image') {
-                content.innerHTML = '<img src="' + url + '" alt="Screenshot" style="max-width:90vw;max-height:85vh;border-radius:8px;box-shadow:0 25px 50px rgba(0,0,0,.5);display:block;background:black;">';
+                media = document.createElement('img');
+                media.alt = 'Screenshot';
+                media.style.cssText = style;
             } else {
-                content.innerHTML = '<video src="' + url + '" controls autoplay style="max-width:90vw;max-height:85vh;border-radius:8px;box-shadow:0 25px 50px rgba(0,0,0,.5);display:block;background:black;"></video>';
+                media = document.createElement('video');
+                media.controls = true;
+                media.autoplay = true;
+                media.style.cssText = style;
             }
+            // Assign src via property — browser treats it as a URL, never as HTML.
+            media.src = url;
+            content.appendChild(media);
             const lb = document.getElementById('lightbox');
             lb.classList.remove('hidden');
             lb.classList.add('flex');

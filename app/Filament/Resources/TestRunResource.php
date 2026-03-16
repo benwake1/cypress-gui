@@ -21,6 +21,8 @@ class TestRunResource extends Resource
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationLabel = 'Test Runs';
 
+    // All authenticated users (admin + pm) may view test runs.
+    public static function canViewAny(): bool { return auth()->check(); }
     public static function canCreate(): bool { return false; } // created via trigger action only
     public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool { return false; }
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool { return auth()->user()?->isAdmin() ?? false; }
@@ -206,6 +208,28 @@ class TestRunResource extends Resource
                             ->body("Run #{$run->id} has been dispatched.")
                             ->success()
                             ->send();
+                    }),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkAction::make('compare')
+                    ->label('Compare 2 Runs')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(function ($records, \Livewire\Component $livewire) {
+                        $ids = $records->pluck('id')->values();
+
+                        if ($ids->count() !== 2) {
+                            Notification::make()
+                                ->title('Select exactly 2 runs to compare')
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+
+                        return redirect(\App\Filament\Pages\CompareRuns::getUrl([
+                            'run_a' => $ids[0],
+                            'run_b' => $ids[1],
+                        ]));
                     }),
             ])
             ->actions([

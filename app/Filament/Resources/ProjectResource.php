@@ -76,14 +76,6 @@ class ProjectResource extends Resource
                         ->required()
                         ->columnSpanFull(),
 
-                    Forms\Components\Textarea::make('deploy_key_private')
-                        ->label('SSH Private Deploy Key')
-                        ->placeholder('Paste your private SSH key here, or generate one below.')
-                        ->rows(8)
-                        ->extraAttributes(['style' => 'font-family: monospace; font-size: 0.75rem;'])
-                        ->dehydrated(fn ($state) => filled($state))
-                        ->columnSpanFull(),
-
                     Forms\Components\Textarea::make('deploy_key_public')
                         ->label('SSH Public Key (add this to your repo)')
                         ->rows(3)

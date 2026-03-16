@@ -61,9 +61,10 @@ class RunCypressTestJob implements ShouldQueue
             $this->log('📊 Merging test reports...');
             $mergedJsonPath = $this->mergeMochawesomeReports();
 
-            // 6. Store the merged JSON
+            // 6. Store the merged JSON on the private disk — it contains test titles,
+            //    error messages, and stack traces that should not be publicly accessible.
             $storedJsonPath = "reports/run-{$this->run->id}/merged.json";
-            Storage::disk('public')->put($storedJsonPath, file_get_contents($mergedJsonPath));
+            Storage::disk('local')->put($storedJsonPath, file_get_contents($mergedJsonPath));
             $this->run->update(['merged_json_path' => $storedJsonPath]);
 
             // 7. Parse results into DB
@@ -129,24 +130,28 @@ class RunCypressTestJob implements ShouldQueue
         $sshKeyPath = null;
         if ($project->deploy_key_private) {
             $sshKeyPath    = $this->setupSshKey($project->deploy_key_private);
-            $gitSshCommand = 'GIT_SSH_COMMAND=' . escapeshellarg("ssh -i {$sshKeyPath} -o StrictHostKeyChecking=no");
+            // accept-new: auto-accepts genuinely new host keys but refuses if key changes (prevents MITM).
+            $gitSshCommand = 'GIT_SSH_COMMAND=' . escapeshellarg("ssh -i {$sshKeyPath} -o StrictHostKeyChecking=accept-new");
         } else {
             $gitSshCommand = '';
         }
 
         $this->log("🔄 Cloning {$repoUrl} (branch: {$branch})...");
 
-        $cloneCmd = "{$gitSshCommand} git clone --depth 1 --branch " . escapeshellarg($branch) . ' ' . escapeshellarg($repoUrl) . ' ' . escapeshellarg($this->runPath) . ' 2>&1';
-        $this->exec($cloneCmd);
+        try {
+            $cloneCmd = "{$gitSshCommand} git clone --depth 1 --branch " . escapeshellarg($branch) . ' ' . escapeshellarg($repoUrl) . ' ' . escapeshellarg($this->runPath) . ' 2>&1';
+            $this->exec($cloneCmd);
 
-        // Get commit SHA
-        $sha = trim($this->exec('git -C ' . escapeshellarg($this->runPath) . ' rev-parse HEAD 2>&1'));
-        if (strlen($sha) === 40) {
-            $this->run->update(['commit_sha' => substr($sha, 0, 8)]);
-        }
-
-        if ($sshKeyPath) {
-            unlink($sshKeyPath);
+            // Get commit SHA
+            $sha = trim($this->exec('git -C ' . escapeshellarg($this->runPath) . ' rev-parse HEAD 2>&1'));
+            if (strlen($sha) === 40) {
+                $this->run->update(['commit_sha' => substr($sha, 0, 8)]);
+            }
+        } finally {
+            // Always remove the key file — even if the clone throws an exception.
+            if ($sshKeyPath && file_exists($sshKeyPath)) {
+                unlink($sshKeyPath);
+            }
         }
 
         $this->log("✅ Repository cloned successfully.");
@@ -205,10 +210,12 @@ class RunCypressTestJob implements ShouldQueue
             $envString .= "{$key}=" . escapeshellarg($value) . ' ';
         }
 
-        // Build cypress command
-        $specPattern = $suite->spec_pattern;
+        // Build cypress command — spec_override targets only failing specs from a previous run
+        $specPattern = $this->run->spec_override ?? $suite->spec_pattern;
+        // Force mochawesome reporter via CLI so we don't depend on each client repo having it configured
+        $reporterFlags = '--reporter mochawesome --reporter-options "reportDir=mochawesome-report,overwrite=false,html=false,json=true"';
         // Merge stderr into stdout so we capture everything on one pipe
-        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . ' 2>&1';
+        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} 2>&1";
 
         $this->log("🧪 Running Cypress tests...");
         $this->log("   Spec pattern: {$specPattern}");

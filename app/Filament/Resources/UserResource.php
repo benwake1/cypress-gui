@@ -82,14 +82,14 @@ class UserResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()
-                    ->before(function (User $record) {
+                    ->before(function (Tables\Actions\DeleteAction $action, User $record) {
                         // Prevent deleting yourself
                         if ($record->id === auth()->id()) {
                             \Filament\Notifications\Notification::make()
                                 ->title('You cannot delete your own account.')
                                 ->danger()
                                 ->send();
-                            $this->halt();
+                            $action->halt(); // correct Filament v3 pattern
                         }
                     }),
             ]);

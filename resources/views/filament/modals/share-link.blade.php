@@ -4,7 +4,8 @@
             type="text"
             readonly
             value="{{ $url }}"
-            class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm font-mono text-gray-700 dark:text-gray-300 focus:outline-none"
+            class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 px-3 py-2 text-sm font-mono focus:outline-none"
+            style="color: inherit !important;"
             x-ref="linkInput"
             @click="$el.select()"
         >
