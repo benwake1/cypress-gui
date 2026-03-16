@@ -23,5 +23,5 @@ jobs:
           script: |
             cd /var/www/cypress-dashboard
             git fetch --tags origin
-            git pull origin main
+            git reset --hard origin/main
             APP_VERSION="${{ github.ref_type == 'tag' && github.ref_name || '' }}" bash deploy.sh
