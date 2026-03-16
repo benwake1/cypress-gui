@@ -12,7 +12,7 @@
     $brandColor     = $client->primary_colour ?: config('brand.primary_color') ?: '#2563eb';
     $brandName      = config('brand.name') ?: config('app.name');
     $appLogoPath    = config('brand.logo_path');
-    $clientLogoPath = $client->logo_path ?? null;
+    $clientLogoPath = $client->logo_url ?? null;
     $clientBg       = $client->primary_colour ?: '#f3f4f6';
     $clientTextColor = $client->primary_colour ? '#ffffff' : '#374151';
     $poweredBy      = config('brand.legal_name') ?: config('brand.name') ?: config('app.name');
@@ -44,7 +44,7 @@
                             <tr>
                                 @if($clientLogoPath)
                                 <td width="36" style="vertical-align:middle;padding-right:12px;">
-                                    <img src="{{ asset($clientLogoPath) }}" alt="{{ $client->name }}" style="max-height:32px;width:auto;display:block;">
+                                    <img src="{{ $clientLogoPath }}" alt="{{ $client->name }}" style="max-height:32px;width:auto;display:block;">
                                 </td>
                                 @endif
                                 <td style="vertical-align:middle;">
@@ -59,7 +59,7 @@
 
                 {{-- Status bar --}}
                 <tr>
-                    <td style="background:{{ $statusBg }};padding:14px 32px;text-align:center;border-radius: 12px">
+                    <td style="background:{{ $statusBg }};padding:14px 32px;text-align:center;border-radius: 0 0 12px 12px">
                         <span style="font-size:15px;font-weight:700;color:{{ $statusColor }};">{{ $statusLabel }}</span>
                     </td>
                 </tr>
@@ -138,7 +138,7 @@
                         <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                             <tr>
                                 <td style="padding:0 32px 12px;">
-                                    <a href="{{ $run->report_share_url }}" style="display:block;text-align:center;background:{{ $brandColor }};color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:8px;font-weight:600;font-size:15px;">
+                                    <a href="{{ $run->report_share_url }}" style="display:block;text-align:center;background:#004dd0;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:8px;font-weight:600;font-size:15px;">
                                         View Full Report (Shareable)
                                     </a>
                                 </td>
