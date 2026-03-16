@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -27,7 +28,11 @@ return new class extends Migration
             $table->foreignId('triggered_by')->nullable()->change();
         });
 
-        // H6: socialite_users — add proper FK constraint
+        // H6: socialite_users — purge orphaned rows, then add proper FK constraint
+        DB::table('socialite_users')
+            ->whereNotIn('user_id', DB::table('users')->select('id'))
+            ->delete();
+
         Schema::table('socialite_users', function (Blueprint $table) {
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
