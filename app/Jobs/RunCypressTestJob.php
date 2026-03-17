@@ -86,7 +86,7 @@ class RunCypressTestJob implements ShouldQueue
                 : "❌ {$freshRun->failed_tests} of {$freshRun->total_tests} tests failed."
             );
 
-            broadcast(new TestRunStatusChanged($this->run->fresh()));
+            event(new TestRunStatusChanged($this->run->fresh()));
 
         } catch (\Exception $e) {
             // Don't overwrite a deliberate cancellation with an error status
@@ -108,7 +108,7 @@ class RunCypressTestJob implements ShouldQueue
             ]);
 
             $this->log('💥 Error: ' . $e->getMessage());
-            broadcast(new TestRunStatusChanged($this->run->fresh()));
+            event(new TestRunStatusChanged($this->run->fresh()));
         } finally {
             $this->cleanup();
         }
