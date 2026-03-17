@@ -8,6 +8,7 @@ use App\Models\AppSetting;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 
 class SendTestRunCompletedEmail implements ShouldQueue
@@ -53,6 +54,17 @@ class SendTestRunCompletedEmail implements ShouldQueue
         Mail::to($recipient)->send(new TestRunCompletedMailable($run));
     }
 
+    private function getMailPassword(): string
+    {
+        $stored = AppSetting::get('mail_password', '');
+        if (!$stored) return '';
+        try {
+            return Crypt::decryptString($stored);
+        } catch (\Exception) {
+            return $stored;
+        }
+    }
+
     private function applyMailSettings(): void
     {
         $map = [
@@ -67,7 +79,10 @@ class SendTestRunCompletedEmail implements ShouldQueue
         ];
 
         foreach ($map as $setting => $configKey) {
-            $value = AppSetting::get($setting);
+            $value = $setting === 'mail_password'
+                ? $this->getMailPassword()
+                : AppSetting::get($setting);
+
             if ($value !== null && $value !== '') {
                 Config::set($configKey, $value);
             }
