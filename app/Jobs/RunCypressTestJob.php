@@ -214,10 +214,13 @@ class RunCypressTestJob implements ShouldQueue
         $specPattern = $this->run->spec_override ?? $suite->spec_pattern;
         // Force mochawesome reporter via CLI so we don't depend on each client repo having it configured
         $reporterFlags = '--reporter mochawesome --reporter-options "reportDir=mochawesome-report,overwrite=false,html=false,json=true"';
-        // Reduce memory pressure to prevent Electron renderer crashes on memory-intensive apps
+        // Prefer Chromium over Electron — Electron has IPC sandbox issues on Linux servers
+        $browser = $this->resolveChromiumBinary();
+        $browserFlag = $browser ? '--browser ' . escapeshellarg($browser) : '';
+        // Reduce memory pressure to prevent renderer crashes on memory-intensive apps
         $configFlags = '--config experimentalMemoryManagement=true,numTestsKeptInMemory=0';
         // Merge stderr into stdout so we capture everything on one pipe
-        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} {$configFlags} 2>&1";
+        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} {$configFlags} {$browserFlag} 2>&1";
 
         $this->log("🧪 Running Cypress tests...");
         $this->log("   Spec pattern: {$specPattern}");
@@ -282,6 +285,18 @@ class RunCypressTestJob implements ShouldQueue
         $this->run->update(['log_output' => $fullLog]);
 
         return $exitCode;
+    }
+
+    private function resolveChromiumBinary(): ?string
+    {
+        foreach (['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'] as $bin) {
+            exec("which {$bin} 2>/dev/null", $out, $code);
+            if ($code === 0 && !empty($out[0])) {
+                return $bin;
+            }
+            $out = [];
+        }
+        return null;
     }
 
     private function mergeMochawesomeReports(): string

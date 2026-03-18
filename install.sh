@@ -137,6 +137,9 @@ apt-get install -y -qq \
     xvfb libgtk-3-0t64 libnotify-dev \
     libnss3 libxss1 libasound2t64 libxtst6 xauth libgbm-dev
 
+info "Installing Chromium (used by Cypress in preference to Electron)..."
+apt-get install -y -qq chromium
+
 success "Cypress headless dependencies installed."
 
 # -----------------------------------------------------------------------------
@@ -246,6 +249,7 @@ DB_PASSWORD=${DB_PASSWORD}
 
 CACHE_STORE=database
 QUEUE_CONNECTION=database
+DB_QUEUE_RETRY_AFTER=14400
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
 
