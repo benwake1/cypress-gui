@@ -22,6 +22,7 @@ class RunCypressTestJob implements ShouldQueue
     public int $tries = 1;
 
     private string $runPath;
+    private bool $syntheticReport = false;
 
     public function __construct(
         public readonly TestRun $run
@@ -70,6 +71,12 @@ class RunCypressTestJob implements ShouldQueue
             // 7. Parse results into DB
             $this->log('💾 Storing test results...');
             $parser->parse($this->run->fresh(), $mergedJsonPath);
+
+            // If mochawesome didn't write a report (e.g. renderer crash), the synthetic
+            // report has no results so mochawesome-merge outputs 0 failures. Force failed.
+            if ($this->syntheticReport) {
+                $this->run->update(['status' => TestRun::STATUS_FAILED]);
+            }
 
             // 8. Map videos and screenshots
             $this->log('🎬 Processing artifacts...');
@@ -315,6 +322,7 @@ class RunCypressTestJob implements ShouldQueue
             ];
             file_put_contents($reportDir . '/mochawesome.json', json_encode($syntheticReport));
             $this->log('⚠️ Mochawesome report not found — Cypress may have crashed before writing results.');
+            $this->syntheticReport = true;
         }
 
         $jsonFiles = glob($reportDir . '/*.json');

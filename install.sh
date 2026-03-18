@@ -137,8 +137,16 @@ apt-get install -y -qq \
     xvfb libgtk-3-0t64 libnotify-dev \
     libnss3 libxss1 libasound2t64 libxtst6 xauth libgbm-dev
 
-info "Installing Chromium (used by Cypress in preference to Electron)..."
-apt-get install -y -qq chromium
+info "Installing Google Chrome (used by Cypress in preference to Electron)..."
+# Ubuntu 24.04 ships Chromium as a snap — Cypress cannot use snap-confined browsers.
+# Install Google Chrome stable from Google's own deb repository instead.
+if ! command -v google-chrome-stable &>/dev/null && ! command -v google-chrome &>/dev/null; then
+    curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/google-chrome.deb
+    apt-get install -y -qq /tmp/google-chrome.deb || apt-get install -f -y -qq
+    rm -f /tmp/google-chrome.deb
+else
+    skip "Google Chrome already installed"
+fi
 
 success "Cypress headless dependencies installed."
 
