@@ -296,14 +296,9 @@ class RunCypressTestJob implements ShouldQueue
 
     private function resolveChromiumBinary(): ?string
     {
-        foreach (['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'] as $bin) {
-            exec("which {$bin} 2>/dev/null", $out, $code);
-            if ($code === 0 && !empty($out[0])) {
-                return trim($out[0]); // return full path — Cypress requires path or known name
-            }
-            $out = [];
-        }
-        return null;
+        exec('which google-chrome-stable 2>/dev/null', $out, $code);
+        $path = trim($out[0] ?? '');
+        return ($code === 0 && $path !== '') ? $path : null;
     }
 
     private function mergeMochawesomeReports(): string
