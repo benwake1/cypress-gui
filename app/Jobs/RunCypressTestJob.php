@@ -225,7 +225,7 @@ class RunCypressTestJob implements ShouldQueue
         $browser = $this->resolveChromiumBinary();
         $browserFlag = $browser ? '--browser ' . escapeshellarg($browser) : '';
         // Reduce memory pressure to prevent renderer crashes on memory-intensive apps
-        $configFlags = '--config experimentalMemoryManagement=true,numTestsKeptInMemory=0,videoCompression=51';
+        $configFlags = '--config experimentalMemoryManagement=true,numTestsKeptInMemory=0,videoCompression=20';
         // Merge stderr into stdout so we capture everything on one pipe
         $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} {$configFlags} {$browserFlag} 2>&1";
 
