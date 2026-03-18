@@ -214,8 +214,10 @@ class RunCypressTestJob implements ShouldQueue
         $specPattern = $this->run->spec_override ?? $suite->spec_pattern;
         // Force mochawesome reporter via CLI so we don't depend on each client repo having it configured
         $reporterFlags = '--reporter mochawesome --reporter-options "reportDir=mochawesome-report,overwrite=false,html=false,json=true"';
+        // Reduce memory pressure to prevent Electron renderer crashes on memory-intensive apps
+        $configFlags = '--config experimentalMemoryManagement=true,numTestsKeptInMemory=0';
         // Merge stderr into stdout so we capture everything on one pipe
-        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} 2>&1";
+        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$envString} npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} {$configFlags} 2>&1";
 
         $this->log("🧪 Running Cypress tests...");
         $this->log("   Spec pattern: {$specPattern}");
@@ -288,7 +290,16 @@ class RunCypressTestJob implements ShouldQueue
         $mergedPath = $this->runPath . '/merged.json';
 
         if (!is_dir($reportDir)) {
-            throw new \RuntimeException("Mochawesome report directory not found at {$reportDir}");
+            // Renderer crash or early Cypress failure — no report was written.
+            // Create a minimal failed report so the run can be stored rather than erroring out.
+            mkdir($reportDir, 0755, true);
+            $syntheticReport = [
+                'stats' => ['suites' => 0, 'tests' => 0, 'passes' => 0, 'pending' => 0, 'failures' => 1, 'start' => now()->toIso8601String(), 'end' => now()->toIso8601String(), 'duration' => 0],
+                'results' => [],
+                'meta' => ['mocha' => ['version' => 'unknown'], 'mochawesome' => ['version' => 'unknown'], 'marge' => ['version' => 'unknown']],
+            ];
+            file_put_contents($reportDir . '/mochawesome.json', json_encode($syntheticReport));
+            $this->log('⚠️ Mochawesome report not found — Cypress may have crashed before writing results.');
         }
 
         $jsonFiles = glob($reportDir . '/*.json');
