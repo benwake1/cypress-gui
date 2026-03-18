@@ -292,7 +292,7 @@ class RunCypressTestJob implements ShouldQueue
         foreach (['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'] as $bin) {
             exec("which {$bin} 2>/dev/null", $out, $code);
             if ($code === 0 && !empty($out[0])) {
-                return $bin;
+                return trim($out[0]); // return full path — Cypress requires path or known name
             }
             $out = [];
         }
