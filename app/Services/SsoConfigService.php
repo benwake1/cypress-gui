@@ -38,10 +38,15 @@ class SsoConfigService
      */
     public function hasDbSettings(): bool
     {
-        foreach (array_keys(self::PROVIDERS) as $provider) {
-            if (AppSetting::get("sso_{$provider}_enabled") !== null) {
-                return true;
+        try {
+            foreach (array_keys(self::PROVIDERS) as $provider) {
+                if (AppSetting::get("sso_{$provider}_enabled") !== null) {
+                    return true;
+                }
             }
+        } catch (\Throwable) {
+            // Table doesn't exist yet (pre-migration) — fall back to .env
+            return false;
         }
 
         return false;
