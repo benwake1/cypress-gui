@@ -711,7 +711,7 @@ echo -e "${YELLOW}Verify workers are running:${NC}"
 echo -e "  ${BOLD}supervisorctl status${NC}\n"
 
 echo -e "${YELLOW}Create your admin user:${NC}"
-echo -e "  ${BOLD}sudo -u ${APP_USER} php ${APP_DIR}/artisan make:filament-user${NC}\n"
+echo -e "  ${BOLD}sudo -u ${APP_USER} php ${APP_DIR}/artisan make:admin${NC}\n"
 
 echo -e "${YELLOW}Configure SSO (optional):${NC}"
 echo -e "  Visit ${BOLD}${APP_SCHEME}://${DOMAIN}/admin/settings/sso${NC} to enable Google/GitHub SSO.\n"

@@ -505,7 +505,7 @@ echo -e "   ${BOLD}supervisorctl start cypress-queue cypress-reverb${NC}"
 echo -e "   ${BOLD}supervisorctl status${NC}\n"
 
 echo -e "${YELLOW}4. Create your admin user${NC}"
-echo -e "   ${BOLD}sudo -u ${APP_USER} php ${APP_DIR}/artisan make:filament-user${NC}\n"
+echo -e "   ${BOLD}sudo -u ${APP_USER} php ${APP_DIR}/artisan make:admin${NC}\n"
 
 echo -e "${YELLOW}5. (Optional) Google OAuth${NC}"
 echo -e "   Edit ${APP_DIR}/.env and set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET"
