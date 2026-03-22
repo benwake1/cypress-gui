@@ -119,7 +119,7 @@ class RunPlaywrightTestJob implements ShouldQueue
     private function installPlaywrightBrowsers(): void
     {
         $this->log('🌐 Installing Playwright browsers...');
-        $this->exec('cd ' . escapeshellarg($this->runPath) . ' && npx playwright install --with-deps 2>&1');
+        $this->exec('cd ' . escapeshellarg($this->runPath) . ' && npx playwright install 2>&1');
         $this->log('✅ Playwright browsers installed.');
     }
 
