@@ -1063,6 +1063,12 @@ sudo -u www-data /usr/local/bin/npx playwright --version
 **Auth redirect loop**
 `routes/web.php` must define `Route::get('/login', ...)` pointing to `/admin/login`. Laravel's `auth` middleware redirects to `route('login')` — without this named route, it will loop or 404.
 
+**Playwright discovery: EACCES `/var/www/.npm`**
+npm uses `~/.npm` as its cache directory. The web server user (`www-data`) typically has `$HOME` set to `/var/www/`, so the cache lands at `/var/www/.npm`. Fix ownership:
+```bash
+sudo mkdir -p /var/www/.npm && sudo chown -R www-data:www-data /var/www/.npm
+```
+
 **`Class "App\Http\Controllers\Controller" not found`**
 Laravel 11 removed the base `Controller` class from the default skeleton. `ReportController` does not extend it. If you have other controllers that do, remove the `extends Controller` line.
 
