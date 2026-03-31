@@ -61,6 +61,33 @@ class SettingsController extends Controller
 
     public function testMail(): JsonResponse
     {
+        $map = [
+            'mail_mailer'       => 'mail.default',
+            'mail_from_address' => 'mail.from.address',
+            'mail_from_name'    => 'mail.from.name',
+            'mail_host'         => 'mail.mailers.smtp.host',
+            'mail_port'         => 'mail.mailers.smtp.port',
+            'mail_username'     => 'mail.mailers.smtp.username',
+            'mail_password'     => 'mail.mailers.smtp.password',
+            'mail_encryption'   => 'mail.mailers.smtp.encryption',
+        ];
+
+        foreach ($map as $setting => $configKey) {
+            $value = AppSetting::get($setting);
+            if ($setting === 'mail_password' && $value) {
+                try {
+                    $value = \Illuminate\Support\Facades\Crypt::decryptString($value);
+                } catch (\Exception) {
+                    // Stored before encryption was added — use as-is
+                }
+            }
+            if ($value !== null && $value !== '') {
+                \Illuminate\Support\Facades\Config::set($configKey, $value);
+            }
+        }
+
+        Mail::purge(config('mail.default'));
+
         try {
             $user = request()->user();
             Mail::raw('This is a test email from Cypress Dashboard.', function ($message) use ($user) {
