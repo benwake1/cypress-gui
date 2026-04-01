@@ -41,6 +41,8 @@ class SsoAuthController extends Controller
             return response()->json(['message' => 'Invalid or inactive SSO provider.'], 422);
         }
 
+        config(["services.{$provider}.redirect" => $this->apiCallbackUrl($provider)]);
+
         $redirectUrl = Socialite::driver($provider)->stateless()->redirect()->getTargetUrl();
 
         return response()->json(['redirect_url' => $redirectUrl]);
@@ -54,6 +56,8 @@ class SsoAuthController extends Controller
         if (! $this->isValidProvider($provider, $ssoConfig)) {
             abort(422, 'Invalid or inactive SSO provider.');
         }
+
+        config(["services.{$provider}.redirect" => $this->apiCallbackUrl($provider)]);
 
         $socialiteUser = Socialite::driver($provider)->stateless()->user();
 
@@ -95,5 +99,10 @@ class SsoAuthController extends Controller
     {
         return array_key_exists($provider, SsoConfigService::PROVIDERS)
             && in_array($provider, $ssoConfig->getActiveProviders(), true);
+    }
+
+    private function apiCallbackUrl(string $provider): string
+    {
+        return url("/api/v1/auth/sso/{$provider}/callback");
     }
 }
