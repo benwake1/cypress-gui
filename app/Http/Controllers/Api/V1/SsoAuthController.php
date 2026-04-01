@@ -22,9 +22,10 @@ class SsoAuthController extends Controller
             $meta = SsoConfigService::PROVIDERS[$provider];
 
             return [
-                'name' => $provider,
-                'label' => $meta['label'],
-                'color' => $meta['color'],
+                'name'            => $provider,
+                'label'           => $meta['label'],
+                'color'           => $meta['color'],
+                'callback_scheme' => $meta['callback_scheme'],
             ];
         })->values();
 
@@ -82,7 +83,9 @@ class SsoAuthController extends Controller
             'user_email' => $user->email,
         ]);
 
-        return redirect("cypressdashboard://auth?{$params}");
+        $scheme = SsoConfigService::PROVIDERS[$provider]['callback_scheme'];
+
+        return redirect("{$scheme}://auth?{$params}");
     }
 
     /**

@@ -15,11 +15,13 @@ class SsoConfigService
             'label' => 'Google',
             'color' => '#4285F4',
             'redirect_path' => '/admin/oauth/callback/google',
+            'callback_scheme' => 'cypressdashboard',
         ],
         'github' => [
             'label' => 'GitHub',
             'color' => '#24292F',
             'redirect_path' => '/admin/oauth/callback/github',
+            'callback_scheme' => 'cypressdashboard',
         ],
     ];
 
