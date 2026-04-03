@@ -2,6 +2,8 @@
 
 A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12** and **Filament v3**. Trigger test suites from a web UI, watch live output stream in real time, generate branded per-client HTML reports, and deliver expiring shareable links to clients — no third-party testing service required.
 
+[Found a bug? Report it on Fider](https://feedback.signaldeck.tech)
+
 ---
 
 ## Table of Contents
