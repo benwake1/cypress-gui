@@ -15,7 +15,7 @@
                     <span class="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 text-xs font-bold">1</span>
                     <div>
                         <p class="font-medium text-gray-900 dark:text-white">Create a new Slack App</p>
-                        <p class="mt-0.5 text-gray-500 dark:text-gray-400">Go to <a href="https://api.slack.com/apps" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">api.slack.com/apps</a> and click <strong>Create New App → From scratch</strong>. Give it a name (e.g. "Test Dashboard") and select your workspace.</p>
+                        <p class="mt-0.5 text-gray-500 dark:text-gray-400">Go to <a href="https://api.slack.com/apps" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">api.slack.com/apps</a> and click <strong>Create New App → From scratch</strong>. Give it a name (e.g. "SignalDeck CI Testing") and select your workspace.</p>
                     </div>
                 </li>
 

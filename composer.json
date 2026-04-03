@@ -1,6 +1,6 @@
 {
-    "name": "cypress-dashboard/app",
-    "description": "Cypress Test Dashboard with branded reporting",
+    "name": "signaldeck-ci/app",
+    "description": "SignalDeck CI - Test Monitoring",
     "type": "project",
     "require": {
         "php": "^8.2",

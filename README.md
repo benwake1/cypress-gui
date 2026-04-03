@@ -1,4 +1,4 @@
-# Test Dashboard
+# SignalDeck - Test Monitoring
 
 A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12** and **Filament v3**. Trigger test suites from a web UI, watch live output stream in real time, generate branded per-client HTML reports, and deliver expiring shareable links to clients — no third-party testing service required.
 
@@ -24,7 +24,7 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 16. [REST API](#rest-api)
 17. [SSO (Single Sign-On)](#sso-single-sign-on)
 18. [Slack Notifications](#slack-notifications)
-19. [macOS Companion App](#macos-companion-app)
+19. [macOS Companion App - SignalDeck CI](#macos-companion-app)
 20. [Project Structure](#project-structure)
 21. [Architecture Overview](#architecture-overview)
 22. [Database Schema](#database-schema)
@@ -740,17 +740,11 @@ If a user's Slack account uses a different email than their dashboard account, a
 
 ---
 
-## macOS Companion App
+## macOS Companion App - SignalDeck CI
 
 A native **SwiftUI macOS app** provides a lightweight desktop interface for monitoring runs and triggering new ones without opening a browser. It connects to the dashboard REST API using a Sanctum token and supports SSO login via a custom URL scheme.
 
-The macOS app lives in a **separate repository**. See that repo's README for installation and build instructions.
-
-To generate an API token for the app:
-1. Log in to the dashboard as an Admin
-2. Go to **Settings → API Tokens**
-3. Create a token with the `desktop:read` and `desktop:write` abilities (add `desktop:admin` if the app needs settings access)
-4. Paste the token into the macOS app's connection settings
+The macOS app lives in a **separate private repository**. And is not subjet to the open source approach as the rest of the project.
 
 ---
 
