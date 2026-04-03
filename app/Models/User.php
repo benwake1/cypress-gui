@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Copyright (c) 2026 Ben Wake
+ *
+ * This source code is licensed under the MIT License.
+ * See the LICENSE file for details.
+ */
+
 namespace App\Models;
 
 use Filament\Models\Contracts\FilamentUser;
@@ -13,7 +20,7 @@ class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'avatar_url', 'password', 'role'];
+    protected $fillable = ['name', 'email', 'avatar_url', 'slack_user_id', 'password', 'role'];
 
     protected $hidden = ['password', 'remember_token'];
 

@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Copyright (c) 2026 Ben Wake
+ *
+ * This source code is licensed under the MIT License.
+ * See the LICENSE file for details.
+ */
+
 namespace App\Http\Requests\Api\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,10 +24,11 @@ class UpdateUserRequest extends FormRequest
         $userId = $this->route('user')?->id ?? $this->route('user');
 
         return [
-            'name'     => ['sometimes', 'string', 'max:255'],
-            'email'    => ['sometimes', 'email', 'unique:users,email,' . $userId],
-            'password' => ['sometimes', 'string', 'min:8', 'confirmed'],
-            'role'     => ['sometimes', 'in:admin,pm'],
+            'name'          => ['sometimes', 'string', 'max:255'],
+            'email'         => ['sometimes', 'email', 'unique:users,email,' . $userId],
+            'password'      => ['sometimes', 'string', 'min:8', 'confirmed'],
+            'role'          => ['sometimes', 'in:admin,pm'],
+            'slack_user_id' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 

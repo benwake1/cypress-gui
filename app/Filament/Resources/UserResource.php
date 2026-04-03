@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Copyright (c) 2026 Ben Wake
+ *
+ * This source code is licensed under the MIT License.
+ * See the LICENSE file for details.
+ */
+
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
@@ -48,6 +55,12 @@ class UserResource extends Resource
                 ->dehydrated(fn ($state) => filled($state))
                 ->required(fn (string $operation) => $operation === 'create')
                 ->helperText(fn (string $operation) => $operation === 'edit' ? 'Leave blank to keep current password.' : null),
+
+            Forms\Components\TextInput::make('slack_user_id')
+                ->label('Slack User ID')
+                ->placeholder('U12345ABCDE')
+                ->helperText('Optional. Leave blank to auto-resolve from the user\'s email address. Format: U followed by alphanumeric characters.')
+                ->nullable(),
         ]);
     }
 
@@ -73,6 +86,11 @@ class UserResource extends Resource
                         'pm'    => 'Project Manager',
                         default => $state,
                     }),
+
+                Tables\Columns\TextColumn::make('slack_user_id')
+                    ->label('Slack ID')
+                    ->searchable()
+                    ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created')

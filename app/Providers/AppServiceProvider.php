@@ -1,10 +1,19 @@
 <?php
 
+/**
+ * Copyright (c) 2026 Ben Wake
+ *
+ * This source code is licensed under the MIT License.
+ * See the LICENSE file for details.
+ */
+
 namespace App\Providers;
 
 use App\Events\TestRunStatusChanged;
 use App\Listeners\SendTestRunCompletedEmail;
+use App\Listeners\SendTestRunSlackNotification;
 use App\Models\AppSetting;
+use App\Services\SlackService;
 use App\Services\SsoConfigService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
@@ -15,11 +24,13 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(SsoConfigService::class);
+        $this->app->singleton(SlackService::class);
     }
 
     public function boot(): void
     {
         Event::listen(TestRunStatusChanged::class, SendTestRunCompletedEmail::class);
+        Event::listen(TestRunStatusChanged::class, SendTestRunSlackNotification::class);
 
         $this->applyMailSettings();
         $this->applySsoSettings();

@@ -9,10 +9,10 @@
 
 namespace App\Http\Requests\Api\V1;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateMailSettingsRequest extends FormRequest
+class UpdateSlackSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -22,14 +22,9 @@ class UpdateMailSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'mail_driver'       => ['nullable', 'in:smtp,sendmail,ses,mailgun,log'],
-            'mail_host'         => ['nullable', 'string'],
-            'mail_port'         => ['nullable', 'integer'],
-            'mail_username'     => ['nullable', 'string'],
-            'mail_password'     => ['nullable', 'string'],
-            'mail_encryption'   => ['nullable', 'in:tls,ssl,null'],
-            'mail_from_address' => ['nullable', 'email'],
-            'mail_from_name'    => ['nullable', 'string'],
+            'slack_notifications_enabled' => ['sometimes', 'boolean'],
+            'slack_bot_token'             => ['sometimes', 'nullable', 'string'],
+            'slack_signing_secret'        => ['sometimes', 'nullable', 'string'],
         ];
     }
 
