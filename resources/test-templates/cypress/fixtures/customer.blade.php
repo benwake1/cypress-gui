@@ -1,0 +1,4 @@
+{
+  "email": "{{ $testEmail }}",
+  "password": "{{ $testPassword }}"
+}

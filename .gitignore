@@ -9,7 +9,6 @@
 /public/css/
 /public/js/
 /bootstrap/cache/*.php
-/storage/*.key
 
 # -----------------------------------------------
 # Environment & secrets — NEVER commit these
@@ -31,16 +30,7 @@ client_secret_*.json
 # -----------------------------------------------
 # Runtime storage — generated at runtime
 # -----------------------------------------------
-/storage/app/private/
-/storage/app/public/runs/
-/storage/app/public/clients/
-/storage/app/public/reports/
-/storage/app/reports/
-/storage/logs/
-/storage/framework/cache/
-/storage/framework/sessions/
-/storage/framework/views/
-/storage/framework/testing/
+/storage/
 
 # -----------------------------------------------
 # SSH deploy keys (written to disk by the app)
