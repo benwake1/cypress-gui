@@ -13,6 +13,7 @@ use App\Models\Project;
 use App\Services\TestGeneratorService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -132,13 +133,19 @@ class TestGeneratorPage extends Page
     private function validateConfiguration(): bool
     {
         $validator = Validator::make([
-            'base_url'     => $this->baseUrl,
-            'test_email'   => $this->testEmail,
-            'test_password'=> $this->testPassword,
+            'base_url'        => $this->baseUrl,
+            'test_email'      => $this->testEmail,
+            'test_password'   => $this->testPassword,
+            'timeout_seconds' => $this->timeoutSeconds,
+            'pw_workers'      => $this->pwWorkers,
+            'pw_retries'      => $this->pwRetries,
         ], [
-            'base_url'      => ['required', 'url'],
-            'test_email'    => ['required', 'email'],
-            'test_password' => ['required', 'min:6'],
+            'base_url'        => ['required', 'url'],
+            'test_email'      => ['required', 'email'],
+            'test_password'   => ['required', 'min:6'],
+            'timeout_seconds' => ['required', 'integer', 'min:5', 'max:120'],
+            'pw_workers'      => ['required', 'integer', 'min:1', 'max:16'],
+            'pw_retries'      => ['required', 'integer', 'min:0', 'max:5'],
         ]);
 
         if ($validator->fails()) {
@@ -185,9 +192,11 @@ class TestGeneratorPage extends Page
                 'Content-Type' => 'application/zip',
             ])->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
+            Log::error('Test generator ZIP failed', ['exception' => $e]);
+
             Notification::make()
                 ->title('ZIP generation failed')
-                ->body($e->getMessage())
+                ->body('An error occurred generating the test suite. Please try again or contact support.')
                 ->danger()
                 ->persistent()
                 ->send();

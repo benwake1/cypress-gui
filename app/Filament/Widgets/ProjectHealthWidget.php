@@ -56,12 +56,12 @@ class ProjectHealthWidget extends Widget
     public function getProjects()
     {
         return Project::with(['client', 'testRuns' => function ($q) {
-            $q->whereIn('status', ['passing', 'failed'])->latest()->limit(10);
+            $q->whereIn('status', ['passing', 'failed'])->latest();
         }, 'testSuites'])
         ->where('active', true)
         ->get()
         ->map(function ($project) {
-            $runs = $project->testRuns;
+            $runs = $project->testRuns->take(10);
             $latest = $runs->first();
             $passRate = $runs->count() > 0
                 ? round($runs->where('status', 'passing')->count() / $runs->count() * 100)

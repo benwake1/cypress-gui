@@ -29,7 +29,8 @@ class RecentRunsWidget extends BaseWidget
     public function table(Table $table): Table
     {
         return $table
-            ->query(TestRun::with(['project.client', 'testSuite', 'triggeredBy'])->latest()->limit(20))
+            ->query(TestRun::with(['project.client', 'testSuite', 'triggeredBy'])->latest())
+            ->paginated([20, 50, 100])
             ->poll('5s')
             ->columns([
                 Tables\Columns\TextColumn::make('id')

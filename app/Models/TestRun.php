@@ -41,6 +41,8 @@ class TestRun extends Model
         'finished_at',
     ];
 
+    protected $hidden = ['log_output'];
+
     protected $casts = [
         'runner_type' => RunnerType::class,
         'started_at' => 'datetime',

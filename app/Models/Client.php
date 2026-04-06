@@ -60,7 +60,7 @@ class Client extends Model
 
     public function getRecentRunsAttribute()
     {
-        return TestRun::whereIn('project_id', $this->projects()->pluck('id'))
+        return TestRun::whereIn('project_id', $this->projects->pluck('id'))
             ->latest()
             ->take(5)
             ->get();
@@ -68,7 +68,7 @@ class Client extends Model
 
     public function getPassRateAttribute(): float
     {
-        $counts = TestRun::whereIn('project_id', $this->projects()->pluck('id'))
+        $counts = TestRun::whereIn('project_id', $this->projects->pluck('id'))
             ->whereIn('status', ['passing', 'failed'])
             ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status = 'passing' THEN 1 ELSE 0 END) as passed")
             ->first();
