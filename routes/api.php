@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SsoAuthController;
+use App\Http\Controllers\Api\V1\TestGeneratorController;
 use App\Http\Controllers\Api\V1\TestHistoryController;
 use App\Http\Controllers\Api\V1\TestRunController;
 use App\Http\Controllers\Api\V1\TestSuiteController;
@@ -87,6 +88,9 @@ Route::middleware(['auth:sanctum', EnsureApiTokenAbility::class.':desktop:write'
     // Trigger / cancel test runs
     Route::post('test-runs', [TestRunController::class, 'store']);
     Route::post('test-runs/{testRun}/cancel', [TestRunController::class, 'cancel']);
+
+    // Test suite generator
+    Route::post('generate-test-suite', [TestGeneratorController::class, 'generate']);
 });
 
 // ── Admin only ──────────────────────────────────────────────────────────
