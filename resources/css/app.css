@@ -74,3 +74,9 @@
 .animate-spin {
     animation: spin 1s linear infinite;
 }
+
+/* ── SignalDeck Hosted Theme
+ * Lives in resources/css/signaldeck-theme.css — loaded as a standalone
+ * <link> via HEAD_END render hook in AdminPanelProvider (IS_HOSTED=true only).
+ * Keeping it separate means Filament's own stylesheet is never touched.
+ * ─────────────────────────────────────────────────────────────────────── */
