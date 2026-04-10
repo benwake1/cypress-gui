@@ -264,7 +264,11 @@
         color: #222222;
     }
 
-    & .fi-ac-btn-action {
+    & .fi-btn-color-success, & .fi-btn-color-danger, & .fi-btn-color-gray {
+        color: #ffffff !important;
+    }
+
+    & .fi-ac-btn-action, & .fi-color-custom.fi-btn-color-primary.fi-color-primary {
         color: #222222;
     }
 
@@ -272,6 +276,33 @@
 
     & .fi-simple-main, & .fi-simple-layout, & .fi-health-block {
         background: radial-gradient(ellipse 60% 300px at 60% 0px, rgba(57, 213, 255, 0.06), transparent 70%)
+    }
+
+    & .sd-block {
+        background-color: #0e1d30 !important;
+        border: 1px solid #315675 !important;
+        box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.7) !important;
+        --tw-shadow: none !important;
+        overflow: hidden;
+    }
+
+    & .sd-block-transparent {
+        background-color: #0e1d30 !important;
+        box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.7) !important;
+        --tw-shadow: none !important;
+        overflow: hidden;
+    }
+
+    .sd-error {
+        border-color: transparent;
+    }
+
+    & .sd-block-green {
+        color: #00bb00 !important;
+    }
+
+    & [x-html="logHtml"] {
+        color: #ffffff !important;
     }
 }
 
