@@ -56,8 +56,7 @@ class AdminPanelProvider extends PanelProvider
                 'info'    => Color::Sky,
             ])
             ->brandName($brand['name'] ?: config('app.name'))
-            ->brandLogo($brand['logo_url'])
-            ->darkModeBrandLogo($brand['logo_dark_url'])
+            ->brandLogo(new \Illuminate\Support\HtmlString(view('filament.brand-logo', ['brand' => $brand])->render()))
             ->brandLogoHeight($brand['logo_height'])
             ->favicon($brand['favicon_url'])
             ->darkMode(true, isForced: config('brand.is_hosted'))
@@ -87,13 +86,15 @@ class AdminPanelProvider extends PanelProvider
                     $secondary = $brand['secondary_color'] ?? '#20bce7';
                     $hosted = config('brand.is_hosted') ? '--default-theme-mode:dark;' : '';
                     $out = "<style>:root{{$hosted}--brand-primary:{$primary};--brand-secondary:{$secondary};}</style>";
+                    // Colour utilities shared across all themes — fixes Filament's dynamically
+                    // constructed class names (e.g. 'bg-' . $color . '-50') that Tailwind never sees
+                    $out .= app(\Illuminate\Foundation\Vite::class)('resources/css/filament-utilities.css');
                     if (config('brand.is_hosted')) {
                         // Fonts
                         $out .= '<link rel="preconnect" href="https://fonts.bunny.net">'
                               . '<link href="https://fonts.bunny.net/css?family=inter:400,500,600,700|jetbrains-mono:400,500&display=swap" rel="stylesheet">';
                         // Theme stylesheet — loaded after Filament's own CSS so our overrides win
-                        $themeUrl = app(\Illuminate\Foundation\Vite::class)('resources/css/signaldeck-theme.css');
-                        $out .= $themeUrl;
+                        $out .= app(\Illuminate\Foundation\Vite::class)('resources/css/signaldeck-theme.css');
                     }
                     return $out;
                 },

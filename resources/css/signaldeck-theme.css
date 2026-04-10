@@ -258,4 +258,20 @@
     & [class*="divide-"] > * + * {
         border-color: rgba(49, 86, 117, 0.5) !important;
     }
+
+    & .fi-button {
+        background-color: #39d5ff;
+        color: #222222;
+    }
+
+    & .fi-ac-btn-action {
+        color: #222222;
+    }
+
+    /* Login */
+
+    & .fi-simple-main, & .fi-simple-layout, & .fi-health-block {
+        background: radial-gradient(ellipse 60% 300px at 60% 0px, rgba(57, 213, 255, 0.06), transparent 70%)
+    }
 }
+

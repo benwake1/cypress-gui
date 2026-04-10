@@ -135,8 +135,8 @@
             </div>
 
             {{-- Test Results --}}
-            <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div class="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="rounded-xl border border-dark-900 overflow-hidden">
+                <div class="bg-white dark:bg-gray-800 px-4 py-3 border-b border-blue-200 dark:border-gray-700 fi-border-title">
                     <h3 class="font-semibold text-sm">Test Results</h3>
                 </div>
                 <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-96 overflow-y-auto" id="results-container">

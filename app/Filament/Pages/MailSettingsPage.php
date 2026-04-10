@@ -35,6 +35,11 @@ class MailSettingsPage extends Page
 
     public static function canAccess(): bool
     {
+        // Hidden in hosted mode — mail is provisioned at the server level
+        if (config('brand.is_hosted')) {
+            return false;
+        }
+
         return auth()->user()?->isAdmin() ?? false;
     }
 
