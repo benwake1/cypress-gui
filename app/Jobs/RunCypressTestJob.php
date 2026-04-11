@@ -90,7 +90,7 @@ class RunCypressTestJob implements ShouldQueue
 
             event(new TestRunStatusChanged($this->run->fresh()));
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($this->run->fresh()->status === TestRun::STATUS_CANCELLED) {
                 $this->log('🛑 Run was cancelled.');
                 return;
@@ -129,7 +129,8 @@ class RunCypressTestJob implements ShouldQueue
         // It is absent on macOS (local dev), so we detect it at runtime.
         $xvfb = trim((string) shell_exec('which xvfb-run 2>/dev/null'));
         $xvfbPrefix = $xvfb ? "xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' " : '';
-        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$xvfbPrefix}{$envString} npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} {$configFlags} {$browserFlag} 2>&1";
+        $envPrefix = $envString ? "env {$envString} " : '';
+        $cmd = 'cd ' . escapeshellarg($this->runPath) . " && {$xvfbPrefix}{$envPrefix}npx cypress run --spec " . escapeshellarg($specPattern) . " {$reporterFlags} {$configFlags} {$browserFlag} 2>&1";
 
         $this->log("🧪 Running Cypress tests...");
         $this->log("   Spec pattern: {$specPattern}");
@@ -185,5 +186,6 @@ class RunCypressTestJob implements ShouldQueue
             'error_message' => $exception->getMessage(),
             'finished_at' => now(),
         ]);
+        event(new TestRunStatusChanged($this->run->fresh()));
     }
 }

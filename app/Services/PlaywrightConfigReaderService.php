@@ -20,10 +20,23 @@ class PlaywrightConfigReaderService
      */
     private function getNodeBinDir(): ?string
     {
+        // Prefer explicit config
         $npmPath = config('testing.npm_path') ?: env('NPM_PATH');
-
         if ($npmPath && file_exists($npmPath)) {
             return dirname($npmPath);
+        }
+
+        // Auto-detect: ask a login shell where npm lives. This handles macOS
+        // environments (Herd, Homebrew, nvm) where the web-server process runs
+        // with a stripped PATH that doesn't include Node.
+        // We only use the login shell for this lookup — not for the actual
+        // npm commands — so shell-profile side-effects stay isolated.
+        $which = @shell_exec('/bin/bash -l -c "which npm 2>/dev/null"');
+        if ($which) {
+            $dir = dirname(trim($which));
+            if (is_dir($dir)) {
+                return $dir;
+            }
         }
 
         return null;

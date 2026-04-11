@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 trait RunsTestSuite
 {
     private string $runPath;
+    private ?int $childPid = null;
 
     protected function initRunPath(): void
     {
@@ -132,64 +133,99 @@ trait RunsTestSuite
 
         fclose($pipes[0]);
 
+        $initialStatus  = proc_get_status($process);
+        $this->childPid = $initialStatus['pid'] ?: null;
+
+        // Capture the child's process group ID now while the process is alive.
+        // proc_open children inherit PHP's PGID by default, but launchers like
+        // xvfb-run and npx typically call setsid/setpgrp, putting themselves in
+        // a new group. We only group-kill when the child's PGID differs from
+        // PHP's — otherwise posix_kill(-pgid) would take out the worker itself.
+        $childPgid = ($this->childPid && function_exists('posix_getpgid'))
+            ? (@posix_getpgid($this->childPid) ?: null)
+            : null;
+        $phpPgid = function_exists('posix_getpgrp') ? posix_getpgrp() : null;
+
         // Preserve pipeline log messages (clone, install, etc.) that were already persisted
-        $fullLog = $this->run->log_output ?? '';
+        $fullLog  = $this->run->log_output ?? '';
         $lastFlush = time();
-        $dirty = false;
+        $dirty    = false;
+        $exitCode = -1;
         stream_set_blocking($pipes[1], false);
 
-        while (true) {
-            if ($this->run->fresh()->status === TestRun::STATUS_CANCELLED) {
-                proc_terminate($process, 9);
-                fclose($pipes[1]);
-                proc_close($process);
-                $this->run->update(['log_output' => $fullLog]);
-                throw new \RuntimeException('Run cancelled by user.');
-            }
-
-            $read = [$pipes[1]];
-            $write = null;
-            $except = null;
-
-            if (stream_select($read, $write, $except, 1) > 0) {
-                $line = fgets($pipes[1]);
-                if ($line !== false) {
-                    $clean = trim($this->stripAnsi($line));
-                    if ($clean !== '') {
-                        $fullLog .= $clean . "\n";
-                        $dirty = true;
-                        $this->log($clean, persist: false);
-                    }
+        try {
+            while (true) {
+                if ($this->run->fresh()->status === TestRun::STATUS_CANCELLED) {
+                    throw new \RuntimeException('Run cancelled by user.');
                 }
-            }
 
-            // Flush log to DB every 3 seconds so polling can pick it up
-            if ($dirty && time() - $lastFlush >= 3) {
-                $this->run->update(['log_output' => $fullLog]);
-                $lastFlush = time();
-                $dirty = false;
-            }
+                $read = [$pipes[1]];
+                $write = null;
+                $except = null;
 
-            $status = proc_get_status($process);
-            if (!$status['running']) {
-                $remaining = stream_get_contents($pipes[1]);
-                if ($remaining) {
-                    foreach (explode("\n", $remaining) as $line) {
-                        $clean = $this->stripAnsi(trim($line));
+                if (stream_select($read, $write, $except, 1) > 0) {
+                    $line = fgets($pipes[1]);
+                    if ($line !== false) {
+                        $clean = trim($this->stripAnsi($line));
                         if ($clean !== '') {
                             $fullLog .= $clean . "\n";
+                            $dirty = true;
                             $this->log($clean, persist: false);
                         }
                     }
                 }
-                break;
+
+                // Flush log to DB every 3 seconds so polling can pick it up
+                if ($dirty && time() - $lastFlush >= 3) {
+                    $this->run->update(['log_output' => $fullLog]);
+                    $lastFlush = time();
+                    $dirty = false;
+                }
+
+                $status = proc_get_status($process);
+                if (!$status['running']) {
+                    $remaining = stream_get_contents($pipes[1]);
+                    if ($remaining) {
+                        foreach (explode("\n", $remaining) as $line) {
+                            $clean = $this->stripAnsi(trim($line));
+                            if ($clean !== '') {
+                                $fullLog .= $clean . "\n";
+                                $this->log($clean, persist: false);
+                            }
+                        }
+                    }
+                    break;
+                }
             }
+        } finally {
+            // Kill the child process group so browser workers / npx grandchildren
+            // don't outlive the job when the PHP worker exits unexpectedly.
+            // Fall back to killing just the direct child when group kill isn't safe.
+            if ($childPgid && $phpPgid && $childPgid !== $phpPgid) {
+                @posix_kill(-$childPgid, SIGKILL);
+            } elseif ($this->childPid) {
+                @posix_kill($this->childPid, SIGKILL);
+            }
+            $this->childPid = null;
+
+            if (is_resource($process)) {
+                if (proc_get_status($process)['running']) {
+                    proc_terminate($process, SIGKILL);
+                }
+                if (is_resource($pipes[1])) {
+                    fclose($pipes[1]);
+                }
+                $closed = proc_close($process);
+                // proc_close returns -1 when killed by signal; preserve the
+                // real exit code from the normal (clean exit) path.
+                if ($closed >= 0) {
+                    $exitCode = $closed;
+                }
+            }
+
+            // Always flush whatever log we have — covers both normal and exception paths.
+            $this->run->update(['log_output' => $fullLog]);
         }
-
-        fclose($pipes[1]);
-        $exitCode = proc_close($process);
-
-        $this->run->update(['log_output' => $fullLog]);
 
         return $exitCode;
     }

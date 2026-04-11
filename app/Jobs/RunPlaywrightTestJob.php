@@ -98,7 +98,7 @@ class RunPlaywrightTestJob implements ShouldQueue
 
             event(new TestRunStatusChanged($this->run->fresh()));
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($this->run->fresh()->status === TestRun::STATUS_CANCELLED) {
                 $this->log('🛑 Run was cancelled.');
                 return;
@@ -170,7 +170,7 @@ class RunPlaywrightTestJob implements ShouldQueue
 
         // Use line reporter for human-readable stdout + json for structured output
         $cmd = 'cd ' . escapeshellarg($this->runPath)
-            . " && {$envString} npx playwright test"
+            . " && env {$envString} npx playwright test"
             . ' --reporter=line,json'
             . $tuningFlags
             . $specArgs
@@ -195,5 +195,6 @@ class RunPlaywrightTestJob implements ShouldQueue
             'error_message' => $exception->getMessage(),
             'finished_at' => now(),
         ]);
+        event(new TestRunStatusChanged($this->run->fresh()));
     }
 }

@@ -130,6 +130,8 @@ class ProjectResource extends Resource
                             ->label('Discover Projects')
                             ->icon('heroicon-o-magnifying-glass')
                             ->color('warning')
+                            ->disabled(fn ($record) => $record === null)
+                            ->tooltip(fn ($record) => $record === null ? 'Save the project first before discovering projects' : null)
                             ->requiresConfirmation()
                             ->modalHeading('Discover Playwright Projects')
                             ->modalDescription('This will clone the repository and read the playwright.config.ts to discover available browser/device projects. This may take a minute.')
@@ -155,7 +157,7 @@ class ProjectResource extends Resource
                             }),
                     ]),
                 ])
-                ->visible(fn ($get) => $get('runner_type') === 'playwright')
+                ->visible(fn ($get) => $get('runner_type') === 'playwright' || $get('runner_type') === RunnerType::Playwright)
                 ->collapsible(),
 
             Forms\Components\Toggle::make('active')
