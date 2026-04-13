@@ -67,21 +67,21 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Backend framework | Laravel 12 |
-| Admin panel | Filament v3 |
-| Frontend reactivity | Livewire 3 + Alpine.js |
-| Asset pipeline | Vite |
-| Real-time transport | Laravel Reverb (WebSockets) |
-| API authentication | Laravel Sanctum (Bearer tokens) |
-| OAuth / SSO | Laravel Socialite + filament-socialite |
-| Queue driver | Database (dev) / Redis (production) |
-| Cache driver | File (dev) / Redis (production) |
-| Session driver | Database |
-| Database | SQLite (development) / MySQL or PostgreSQL (production) |
-| Test runners | Cypress and Playwright (installed per-project via npm) |
-| Report parsing | Mochawesome JSON (Cypress) / Playwright JSON reporter |
+| Layer               | Technology                                              |
+| ------------------- | ------------------------------------------------------- |
+| Backend framework   | Laravel 12                                              |
+| Admin panel         | Filament v3                                             |
+| Frontend reactivity | Livewire 3 + Alpine.js                                  |
+| Asset pipeline      | Vite                                                    |
+| Real-time transport | Laravel Reverb (WebSockets)                             |
+| API authentication  | Laravel Sanctum (Bearer tokens)                         |
+| OAuth / SSO         | Laravel Socialite + filament-socialite                  |
+| Queue driver        | Database (dev) / Redis (production)                     |
+| Cache driver        | File (dev) / Redis (production)                         |
+| Session driver      | Database                                                |
+| Database            | SQLite (development) / MySQL or PostgreSQL (production) |
+| Test runners        | Cypress and Playwright (installed per-project via npm)  |
+| Report parsing      | Mochawesome JSON (Cypress) / Playwright JSON reporter   |
 
 ---
 
@@ -89,15 +89,15 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 
 Install the following before running the application:
 
-| Requirement | Notes |
-|---|---|
-| PHP 8.2+ | Extensions: `pdo`, `openssl`, `mbstring`, `xml`, `curl` |
-| Composer | PHP dependency manager |
-| Node.js 18+ | Runtime for Vite, Cypress, and Playwright |
-| npm | Package manager for frontend and test runners |
-| Redis | Recommended for production. Not needed locally — see Queue, Cache & Session below |
-| Git | For cloning test repositories |
-| SSH | Required if using private Git repositories |
+| Requirement | Notes                                                                             |
+| ----------- | --------------------------------------------------------------------------------- |
+| PHP 8.2+    | Extensions: `pdo`, `openssl`, `mbstring`, `xml`, `curl`                           |
+| Composer    | PHP dependency manager                                                            |
+| Node.js 18+ | Runtime for Vite, Cypress, and Playwright                                         |
+| npm         | Package manager for frontend and test runners                                     |
+| Redis       | Recommended for production. Not needed locally — see Queue, Cache & Session below |
+| Git         | For cloning test repositories                                                     |
+| SSH         | Required if using private Git repositories                                        |
 
 ---
 
@@ -105,28 +105,28 @@ Install the following before running the application:
 
 ```bash
 # 1. Clone the repository
-git clone <your-repo-url> cypress-dashboard
-cd cypress-dashboard
+git clone <your-repo-url> signaldeck-ci-server
+cd signaldeck-ci-server
 
-# 2. Create required directories (excluded from git, needed before composer install)
-mkdir -p bootstrap/cache storage/framework/{sessions,views,cache} storage/logs
-
-# 3. Install PHP dependencies
-composer install
-
-# 4. Install Node dependencies
-npm install
-
-# 5. Copy the environment file
+# 2. Copy the environment file (must exist before composer runs artisan commands)
 cp .env.example .env
 
-# 6. Generate the application key
+# 3. Create required directories (excluded from git, needed before composer install)
+mkdir -p bootstrap/cache storage/framework/{sessions,views,cache} storage/logs
+
+# 4. Create the SQLite database file (must exist before composer runs artisan commands)
+touch database/database.sqlite
+
+# 5. Install PHP dependencies
+composer install
+
+# 6. Install Node dependencies
+npm install
+
+# 7. Generate the application key
 php artisan key:generate
 
-# 7. Configure .env (see Environment Variables section)
-
-# 8. Create the SQLite database file (if using SQLite)
-touch database/database.sqlite
+# 8. Configure .env (see Environment Variables section below)
 
 # 9. Run migrations and seed demo data
 php artisan migrate --seed
@@ -144,10 +144,10 @@ Then start the required processes — each in a separate terminal:
 # Terminal 1 — Web server (or use Laravel Herd / Valet)
 php artisan serve
 
-# Terminal 2 — Queue worker (processes test jobs)
+# Terminal 2 — Queue worker (processes test jobs; must be running to execute test suites)
 php artisan queue:work --queue=cypress --timeout=3600 --tries=1
 
-# Terminal 3 — Reverb WebSocket server
+# Terminal 3 — Reverb WebSocket server (live console output)
 php artisan reverb:start
 
 # Terminal 4 — Vite dev server (hot module reloading)
@@ -303,10 +303,10 @@ php artisan db:seed
 
 ### Seeded demo accounts
 
-| Email | Password | Role |
-|---|---|---|
+| Email               | Password   | Role  |
+| ------------------- | ---------- | ----- |
 | `admin@example.com` | `password` | Admin |
-| `pm@example.com` | `password` | PM |
+| `pm@example.com`    | `password` | PM    |
 
 > **Change these immediately on any non-local environment.** You can do this from **Admin → Users** in the panel.
 
@@ -323,11 +323,11 @@ php artisan storage:link
 
 ### What is stored where
 
-| Path | Disk | Access | Contents |
-|---|---|---|---|
-| `storage/app/private/reports/run-{id}/report.html` | `local` (private) | Auth-gated controller | HTML reports |
-| `storage/app/public/runs/{id}/screenshots/` | `public` | Public URL via `/storage/` | Test screenshots |
-| `storage/app/public/runs/{id}/videos/` | `public` | Public URL via `/storage/` | Test videos |
+| Path                                               | Disk              | Access                     | Contents         |
+| -------------------------------------------------- | ----------------- | -------------------------- | ---------------- |
+| `storage/app/private/reports/run-{id}/report.html` | `local` (private) | Auth-gated controller      | HTML reports     |
+| `storage/app/public/runs/{id}/screenshots/`        | `public`          | Public URL via `/storage/` | Test screenshots |
+| `storage/app/public/runs/{id}/videos/`             | `public`          | Public URL via `/storage/` | Test videos      |
 
 Reports are intentionally **not** stored in the public disk. They are served through Laravel controller routes that enforce authentication (`/reports/run/{id}/html`) or HMAC token validation (`/reports/share/{id}/{token}`). There is no way to access a report by guessing a storage path.
 
@@ -407,9 +407,9 @@ Private Git repositories require an SSH deploy key. Each project has its own key
 2. Open a project and click **Generate Deploy Key**
 3. Copy the displayed public key
 4. Add it as a **Deploy Key** (read-only) in your Git provider:
-   - **GitHub:** Repository → Settings → Deploy keys → Add deploy key
-   - **GitLab:** Repository → Settings → Repository → Deploy keys
-   - **Bitbucket:** Repository → Repository settings → Access keys
+    - **GitHub:** Repository → Settings → Deploy keys → Add deploy key
+    - **GitLab:** Repository → Settings → Repository → Deploy keys
+    - **Bitbucket:** Repository → Repository settings → Access keys
 
 ### SSH host key
 
@@ -433,25 +433,25 @@ Leave the deploy key fields blank.
 
 ## Roles & Permissions
 
-| Capability | Admin | PM |
-|---|---|---|
-| View test runs | ✅ | ✅ |
-| Trigger test runs | ✅ | ✅ |
-| View / download reports | ✅ | ✅ |
-| Share report links | ✅ | ✅ |
-| Re-run a test | ✅ | ✅ |
-| Re-run failures only | ✅ | ✅ |
-| Compare runs | ✅ | ✅ |
-| View flaky tests | ✅ | ✅ |
-| View test history | ✅ | ✅ |
-| Manage clients | ✅ | ❌ |
-| Manage projects | ✅ | ❌ |
-| Manage test suites | ✅ | ❌ |
-| Playwright performance tuning | ✅ | ❌ |
-| Manage users | ✅ | ❌ |
-| Delete test runs | ✅ | ❌ |
-| Manage settings (mail, SSO, Slack) | ✅ | ❌ |
-| Generate API tokens | ✅ | ❌ |
+| Capability                         | Admin | PM  |
+| ---------------------------------- | ----- | --- |
+| View test runs                     | ✅    | ✅  |
+| Trigger test runs                  | ✅    | ✅  |
+| View / download reports            | ✅    | ✅  |
+| Share report links                 | ✅    | ✅  |
+| Re-run a test                      | ✅    | ✅  |
+| Re-run failures only               | ✅    | ✅  |
+| Compare runs                       | ✅    | ✅  |
+| View flaky tests                   | ✅    | ✅  |
+| View test history                  | ✅    | ✅  |
+| Manage clients                     | ✅    | ❌  |
+| Manage projects                    | ✅    | ❌  |
+| Manage test suites                 | ✅    | ❌  |
+| Playwright performance tuning      | ✅    | ❌  |
+| Manage users                       | ✅    | ❌  |
+| Delete test runs                   | ✅    | ❌  |
+| Manage settings (mail, SSO, Slack) | ✅    | ❌  |
+| Generate API tokens                | ✅    | ❌  |
 
 Roles are stored as a `role` string on the `users` table (`admin` or `pm`). Manage users at **Admin → Users** in the panel.
 
@@ -487,6 +487,7 @@ On the project page, open the **Test Suites** tab and create a suite:
 - **Timeout** — maximum minutes before the run is killed (default: 60)
 
 For **Playwright suites**:
+
 - **Playwright Projects** — select which browsers/devices to test (e.g. chromium, firefox, webkit)
 - **Performance Tuning** (admin only) — override parallel workers and retry count via CLI flags
 
@@ -540,6 +541,7 @@ Generated automatically after every run. Served via an authenticated controller 
 **Access:** Test Runs table → **HTML Report** button, or the run detail view header.
 
 **Features:**
+
 - Client logo, brand colours, and footer text
 - Executive summary: pass rate, duration, pass/fail/skip counts
 - Per-spec file breakdown with status badges
@@ -576,11 +578,12 @@ Register the Laravel scheduler with your server's cron (run once, runs all tasks
 
 ### Registered schedule
 
-| Time | Command | Description |
-|---|---|---|
+| Time           | Command        | Description                                             |
+| -------------- | -------------- | ------------------------------------------------------- |
 | Daily at 02:00 | `runs:cleanup` | Deletes artifacts for completed runs older than 30 days |
 
 The cleanup command removes:
+
 - HTML and PDF reports from the local (private) disk
 - Screenshots and videos from the public disk
 - Nulls out the corresponding database paths
@@ -651,38 +654,38 @@ Returns a Sanctum token. Pass it as `Authorization: Bearer {token}` on subsequen
 
 Tokens are scoped with abilities. Admin users can generate tokens in **Settings → API Tokens**.
 
-| Ability | Grants |
-|---|---|
-| `desktop:read` | Read all resources (runs, results, logs, reports, analytics) |
-| `desktop:write` | Trigger and cancel test runs |
-| `desktop:admin` | Full CRUD on clients, projects, suites, users, and settings |
+| Ability         | Grants                                                       |
+| --------------- | ------------------------------------------------------------ |
+| `desktop:read`  | Read all resources (runs, results, logs, reports, analytics) |
+| `desktop:write` | Trigger and cancel test runs                                 |
+| `desktop:admin` | Full CRUD on clients, projects, suites, users, and settings  |
 
 ### Key endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/health` | Health check (unauthenticated) |
-| `POST` | `/api/v1/auth/login` | Obtain a Sanctum token |
-| `POST` | `/api/v1/auth/logout` | Revoke current token |
-| `GET` | `/api/v1/auth/user` | Authenticated user profile |
-| `GET` | `/api/v1/auth/sso/providers` | List enabled SSO providers |
-| `GET` | `/api/v1/dashboard/stats` | Summary counts for the dashboard |
-| `GET` | `/api/v1/clients` | List clients |
-| `GET` | `/api/v1/projects` | List projects |
-| `GET` | `/api/v1/projects/{id}/suites` | List suites for a project |
-| `GET` | `/api/v1/test-runs` | List test runs (filterable) |
-| `POST` | `/api/v1/test-runs` | Trigger a new test run |
-| `GET` | `/api/v1/test-runs/{id}` | Run detail |
-| `GET` | `/api/v1/test-runs/{id}/results` | Per-test results |
-| `GET` | `/api/v1/test-runs/{id}/logs` | Raw console output |
-| `GET` | `/api/v1/test-runs/{id}/report` | Report URL / download |
-| `GET` | `/api/v1/test-runs/compare` | Compare two runs |
-| `POST` | `/api/v1/test-runs/{id}/cancel` | Cancel a queued/running run |
-| `GET` | `/api/v1/flaky-tests` | Flaky test analytics |
-| `GET` | `/api/v1/test-history` | Per-test run history |
-| `GET` | `/api/v1/settings` | Read admin settings |
-| `PUT` | `/api/v1/settings/slack` | Update Slack settings |
-| `PUT` | `/api/v1/settings/sso` | Update SSO settings |
+| Method | Path                             | Description                      |
+| ------ | -------------------------------- | -------------------------------- |
+| `GET`  | `/api/v1/health`                 | Health check (unauthenticated)   |
+| `POST` | `/api/v1/auth/login`             | Obtain a Sanctum token           |
+| `POST` | `/api/v1/auth/logout`            | Revoke current token             |
+| `GET`  | `/api/v1/auth/user`              | Authenticated user profile       |
+| `GET`  | `/api/v1/auth/sso/providers`     | List enabled SSO providers       |
+| `GET`  | `/api/v1/dashboard/stats`        | Summary counts for the dashboard |
+| `GET`  | `/api/v1/clients`                | List clients                     |
+| `GET`  | `/api/v1/projects`               | List projects                    |
+| `GET`  | `/api/v1/projects/{id}/suites`   | List suites for a project        |
+| `GET`  | `/api/v1/test-runs`              | List test runs (filterable)      |
+| `POST` | `/api/v1/test-runs`              | Trigger a new test run           |
+| `GET`  | `/api/v1/test-runs/{id}`         | Run detail                       |
+| `GET`  | `/api/v1/test-runs/{id}/results` | Per-test results                 |
+| `GET`  | `/api/v1/test-runs/{id}/logs`    | Raw console output               |
+| `GET`  | `/api/v1/test-runs/{id}/report`  | Report URL / download            |
+| `GET`  | `/api/v1/test-runs/compare`      | Compare two runs                 |
+| `POST` | `/api/v1/test-runs/{id}/cancel`  | Cancel a queued/running run      |
+| `GET`  | `/api/v1/flaky-tests`            | Flaky test analytics             |
+| `GET`  | `/api/v1/test-history`           | Per-test run history             |
+| `GET`  | `/api/v1/settings`               | Read admin settings              |
+| `PUT`  | `/api/v1/settings/slack`         | Update Slack settings            |
+| `PUT`  | `/api/v1/settings/sso`           | Update SSO settings              |
 
 ---
 
@@ -694,9 +697,9 @@ The dashboard supports Google and GitHub OAuth login. SSO is configured from **S
 
 1. In [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials**, create an OAuth 2.0 client ID.
 2. Add the following to **Authorised redirect URIs**:
-   ```
-   https://your-domain.com/admin/oauth/callback/google
-   ```
+    ```
+    https://your-domain.com/admin/oauth/callback/google
+    ```
 3. In the admin panel, go to **Settings → Single Sign-On**, enable Google, and enter your Client ID and Secret.
 4. Save. The "Sign in with Google" button will appear on the login page immediately.
 
@@ -704,9 +707,9 @@ The dashboard supports Google and GitHub OAuth login. SSO is configured from **S
 
 1. In GitHub → **Settings → Developer settings → OAuth Apps**, create a new app.
 2. Set **Authorization callback URL** to:
-   ```
-   https://your-domain.com/admin/oauth/callback/github
-   ```
+    ```
+    https://your-domain.com/admin/oauth/callback/github
+    ```
 3. In the admin panel, go to **Settings → Single Sign-On**, enable GitHub, and enter your Client ID and Secret.
 
 ### Notes
@@ -724,9 +727,9 @@ When enabled, the dashboard sends a Slack DM to the user who triggered a test ru
 ### Setup
 
 1. Create a **Slack App** at [api.slack.com/apps](https://api.slack.com/apps):
-   - Add the `users:read.email` and `chat:write` OAuth scopes under **Bot Token Scopes**
-   - Install the app to your workspace
-   - Copy the **Bot User OAuth Token** (`xoxb-...`)
+    - Add the `users:read.email` and `chat:write` OAuth scopes under **Bot Token Scopes**
+    - Install the app to your workspace
+    - Copy the **Bot User OAuth Token** (`xoxb-...`)
 2. In the admin panel, go to **Settings → Slack**, enable notifications, paste the bot token, and click **Test Connection**.
 
 ### How it works
@@ -1071,6 +1074,7 @@ sudo chmod 600 /etc/ssl/cloudflare/origin.key
 ```
 
 Then in Cloudflare:
+
 - **SSL/TLS → Overview** → set mode to **Full (strict)**
 
 ---
@@ -1276,16 +1280,16 @@ git push -u origin main
 
 The default Laravel `.gitignore` already excludes everything sensitive:
 
-| Excluded | Why |
-|---|---|
-| `.env` | Contains secrets — **never commit** |
-| `/vendor/` | Restored via `composer install` |
-| `/node_modules/` | Restored via `npm install` |
-| `/storage/app/` | Runtime data |
-| `/storage/logs/` | Runtime logs |
-| `/bootstrap/cache/` | Generated on deploy |
-| `/public/build/` | Generated by Vite |
-| `/public/storage` | Symlink, recreated via `storage:link` |
+| Excluded            | Why                                   |
+| ------------------- | ------------------------------------- |
+| `.env`              | Contains secrets — **never commit**   |
+| `/vendor/`          | Restored via `composer install`       |
+| `/node_modules/`    | Restored via `npm install`            |
+| `/storage/app/`     | Runtime data                          |
+| `/storage/logs/`    | Runtime logs                          |
+| `/bootstrap/cache/` | Generated on deploy                   |
+| `/public/build/`    | Generated by Vite                     |
+| `/public/storage`   | Symlink, recreated via `storage:link` |
 
 ### Secrets never to commit
 
@@ -1317,12 +1321,14 @@ The web server has a minimal `PATH`. Ensure `NPM_PATH` and `NODE_PATH` are set i
 
 **Git clone fails**
 Test SSH access manually as the web server user:
+
 ```bash
 sudo -u www-data ssh -T git@github.com -o StrictHostKeyChecking=accept-new
 ```
 
 **Cypress/Playwright not found in the job**
 Confirm `NODE_PATH` and `NPM_PATH` in `.env` point to binaries accessible by the queue worker user:
+
 ```bash
 sudo -u www-data /usr/local/bin/npx cypress --version
 sudo -u www-data /usr/local/bin/npx playwright --version
@@ -1333,6 +1339,7 @@ sudo -u www-data /usr/local/bin/npx playwright --version
 
 **Playwright discovery: EACCES `/var/www/.npm`**
 npm uses `~/.npm` as its cache directory. The web server user (`www-data`) typically has `$HOME` set to `/var/www/`, so the cache lands at `/var/www/.npm`. Fix ownership:
+
 ```bash
 sudo mkdir -p /var/www/.npm && sudo chown -R www-data:www-data /var/www/.npm
 ```
@@ -1341,6 +1348,7 @@ sudo mkdir -p /var/www/.npm && sudo chown -R www-data:www-data /var/www/.npm
 Check that the redirect URI registered in your OAuth provider exactly matches `APP_URL/admin/oauth/callback/{provider}`. Ensure the provider is enabled in **Settings → Single Sign-On** and the client ID/secret are saved.
 
 **Slack DM not received**
+
 - Verify the bot token is valid via **Settings → Slack → Test Connection**
 - Confirm the Slack app has `users:read.email` and `chat:write` bot scopes and is installed to the workspace
 - Check `storage/logs/laravel.log` for `Slack users.lookupByEmail` or `chat.postMessage` warnings
