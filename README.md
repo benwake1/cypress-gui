@@ -24,15 +24,16 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 14. [Scheduled Tasks & Artifact Cleanup](#scheduled-tasks--artifact-cleanup)
 15. [Artisan Commands Reference](#artisan-commands-reference)
 16. [REST API](#rest-api)
-17. [SSO (Single Sign-On)](#sso-single-sign-on)
-18. [Slack Notifications](#slack-notifications)
-19. [macOS Companion App - SignalDeck CI](#macos-companion-app-signaldeck-ci)
-20. [Project Structure](#project-structure)
-21. [Architecture Overview](#architecture-overview)
-22. [Database Schema](#database-schema)
-23. [Deployment (VPS + Cloudflare)](#deployment)
-24. [Git Repository Setup](#git-repository-setup)
-25. [Troubleshooting](#troubleshooting)
+17. [Branding Settings](#branding-settings)
+18. [SSO (Single Sign-On)](#sso-single-sign-on)
+19. [Slack Notifications](#slack-notifications)
+20. [macOS Companion App - SignalDeck CI](#macos-companion-app-signaldeck-ci)
+21. [Project Structure](#project-structure)
+22. [Architecture Overview](#architecture-overview)
+23. [Database Schema](#database-schema)
+24. [Deployment (VPS + Cloudflare)](#deployment)
+25. [Git Repository Setup](#git-repository-setup)
+26. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -62,6 +63,8 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 - **Artifact cleanup** — scheduled command to purge screenshots, videos, and reports older than N days
 - **Re-run** — trigger a new run from any completed run with one click
 - **Re-run failures** — re-run only the failing spec files from a completed run
+- **Email notifications** — automated email to the triggering user when a run completes (pass or fail)
+- **Test Suite Generator** — generate a ready-to-run Cypress or Playwright e-commerce test scaffold (Magento-focused) as a downloadable ZIP from the admin UI or API
 
 ---
 
@@ -167,7 +170,7 @@ Copy `.env.example` to `.env` and fill in the values below.
 ### Application
 
 ```env
-APP_NAME=SignalDeck CI"
+APP_NAME=SignalDeck CI
 APP_ENV=local                    # local | production
 APP_KEY=                         # Set automatically by php artisan key:generate
 APP_DEBUG=true                   # Set to false in production
@@ -350,12 +353,13 @@ php artisan reverb:start
 
 ### Procfile
 
-The included `Procfile` defines worker processes for hivemind/overmind:
+The included `Procfile` defines the queue worker process for hivemind/overmind:
 
 ```
 queue: php artisan queue:work --queue=cypress --timeout=3600
-reverb: php artisan reverb:start
 ```
+
+> Start Reverb separately with `php artisan reverb:start`, or add it as a process in your own `Procfile`/Supervisor config.
 
 ### Production (Supervisor)
 
@@ -497,6 +501,12 @@ Go to **Testing → Test Runs** and click **Run Tests** in the top-right. Select
 
 Click **View** on the queued run to open the live view, where console output updates in real time via WebSockets.
 
+### 5. Generate Test Scaffolds (optional)
+
+**Testing → Test Generator**
+
+A multi-step wizard generates a ready-to-run Cypress or Playwright e-commerce test suite for Magento-based stores. Select the test scenarios you need, provide your store's base URL and credentials, and download a ZIP containing fully configured spec files and supporting config. Available to Admin and PM roles.
+
 ---
 
 ## Running Tests
@@ -594,6 +604,18 @@ Report metadata (pass counts, status, test results) is retained in the database 
 
 ## Artisan Commands Reference
 
+### `make:admin`
+
+Creates a new admin user or promotes an existing user to admin.
+
+```bash
+# Interactive prompts
+php artisan make:admin
+
+# Non-interactive
+php artisan make:admin --name="Alice" --email="alice@example.com" --password="secret"
+```
+
 ### `runs:cleanup`
 
 Deletes screenshots, videos, and reports for completed runs older than a configurable threshold.
@@ -689,6 +711,12 @@ Tokens are scoped with abilities. Admin users can generate tokens in **Settings 
 
 ---
 
+## Branding Settings
+
+Panel-level branding (name, logo, primary colour, favicon, and legal name) can be configured at runtime from **Settings → Branding** in the admin panel, removing the need to edit `.env` for cosmetic changes. The `BRAND_*` and `COMPANY_LEGAL_NAME` environment variables remain as fallback defaults when no database value is set.
+
+---
+
 ## SSO (Single Sign-On)
 
 The dashboard supports Google and GitHub OAuth login. SSO is configured from **Settings → Single Sign-On** in the admin panel — no `.env` changes are required once the app credentials are set.
@@ -760,6 +788,7 @@ cypress-dashboard/
 ├── app/
 │   ├── Console/Commands/
 │   │   ├── CleanupOldArtifacts.php       # runs:cleanup
+│   │   ├── MakeAdminUser.php             # make:admin
 │   │   └── RegenerateReports.php         # runs:regenerate-reports
 │   ├── Events/
 │   │   ├── TestRunStatusChanged.php      # Broadcast: status, counts, report URLs
@@ -769,6 +798,8 @@ cypress-dashboard/
 │   │   │   ├── CompareRuns.php           # Side-by-side run comparison
 │   │   │   ├── FlakyTests.php            # Flaky test analytics
 │   │   │   ├── TestHistory.php           # Per-test history trend
+│   │   │   ├── TestGeneratorPage.php     # E-commerce test scaffold wizard
+│   │   │   ├── BrandingSettingsPage.php  # Brand colours, logo, and panel customisation
 │   │   │   ├── MailSettingsPage.php      # SMTP mail configuration
 │   │   │   ├── SlackSettingsPage.php     # Slack bot token + notification toggle
 │   │   │   ├── SsoSettingsPage.php       # OAuth provider configuration
@@ -791,6 +822,7 @@ cypress-dashboard/
 │   │   │   │   ├── FlakyTestController.php
 │   │   │   │   ├── TestHistoryController.php
 │   │   │   │   ├── SettingsController.php
+│   │   │   │   ├── TestGeneratorController.php
 │   │   │   │   ├── UserController.php
 │   │   │   │   └── HealthController.php
 │   │   │   └── ReportController.php      # html(), share() — serves report files
@@ -802,6 +834,7 @@ cypress-dashboard/
 │   │   ├── RunCypressTestJob.php         # Cypress: run → parse mochawesome → report
 │   │   └── RunPlaywrightTestJob.php      # Playwright: install browsers → run → parse JSON → report
 │   ├── Listeners/
+│   │   ├── SendTestRunCompletedEmail.php      # Queued email to triggering user on run completion
 │   │   └── SendTestRunSlackNotification.php  # DMs the triggering user on run completion
 │   ├── Models/
 │   │   ├── AppSetting.php               # Key/value store for DB-backed settings
@@ -821,7 +854,8 @@ cypress-dashboard/
 │       ├── PlaywrightConfigReaderService.php  # Discovers browser projects from repo config
 │       ├── ReportGeneratorService.php    # Renders HTML report
 │       ├── SlackService.php              # Slack API: token validation, user lookup, DM sending
-│       └── SsoConfigService.php          # Reads SSO provider config from DB or .env
+│       ├── SsoConfigService.php          # Reads SSO provider config from DB or .env
+│       └── TestGeneratorService.php      # Generates Cypress/Playwright e-commerce test ZIPs
 ├── database/
 │   ├── migrations/                      # All schema migrations
 │   └── seeders/
@@ -872,6 +906,7 @@ Queue Worker (--queue=cypress)
   Console output broadcast over WebSockets (Reverb) + flushed to DB every 3s
 
   On completion → TestRunStatusChanged event
+    ├── SendTestRunCompletedEmail listener → email to triggering user
     └── SendTestRunSlackNotification listener → Slack DM to triggering user
 
 Reverb WebSocket Server
