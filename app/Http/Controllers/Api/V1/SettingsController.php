@@ -226,6 +226,15 @@ class SettingsController extends Controller
         return response()->json(['message' => 'Migration queued.']);
     }
 
+    public function disableStorage(): JsonResponse
+    {
+        foreach (['s3_bucket', 's3_region', 's3_key', 's3_secret', 's3_endpoint', 's3_use_path_style'] as $key) {
+            AppSetting::set($key, '');
+        }
+
+        return response()->json(['message' => 'S3 storage disabled.']);
+    }
+
     public function updateSso(UpdateSsoSettingsRequest $request, SsoConfigService $ssoConfig): JsonResponse
     {
         $data     = $request->validated();

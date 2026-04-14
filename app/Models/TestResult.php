@@ -52,7 +52,7 @@ class TestResult extends Model
             if ($disk === 's3') {
                 return Storage::disk('s3')->temporaryUrl($path, now()->addHours(1));
             }
-            return asset('storage/' . $path);
+            return $this->signedAssetUrl($path);
         }, $this->screenshot_paths);
     }
 
@@ -66,7 +66,7 @@ class TestResult extends Model
             return Storage::disk('s3')->temporaryUrl($this->video_path, now()->addHours(1));
         }
 
-        return asset('storage/' . $this->video_path);
+        return $this->signedAssetUrl($this->video_path);
     }
 
     /**
@@ -109,5 +109,21 @@ class TestResult extends Model
     public function isFailed(): bool
     {
         return $this->status === 'failed';
+    }
+
+    /**
+     * Generate a time-limited signed asset URL for local-disk files.
+     * Uses the same HMAC signing as the report share feature so unauthenticated
+     * clients (e.g. AsyncImage in the macOS app) can load assets without needing
+     * an Authorization header — matching the behaviour of S3 temporary URLs.
+     */
+    private function signedAssetUrl(string $path): string
+    {
+        $expiry   = now()->addHour()->timestamp;
+        $shareKey = hash_hmac('sha256', 'report-share-v1', config('app.key'));
+        $token    = hash_hmac('sha256', "report-{$this->test_run_id}-{$expiry}", $shareKey);
+
+        return route('reports.asset', ['testRun' => $this->test_run_id, 'path' => $path])
+            . '?token=' . $token . '&expires=' . $expiry;
     }
 }

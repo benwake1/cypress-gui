@@ -28,10 +28,19 @@ class ReportController
     {
         $disk = $testRun->storage_disk ?? config('filesystems.default');
 
-        // Regenerate if missing
-        if (!$testRun->report_html_path || !Storage::disk($disk)->exists($testRun->report_html_path)) {
+        // If the stored disk is unavailable (e.g. S3 disabled after this run was created),
+        // treat it the same as "file missing" and regenerate on the current default disk.
+        $needsRegeneration = false;
+        try {
+            $needsRegeneration = !$testRun->report_html_path || !Storage::disk($disk)->exists($testRun->report_html_path);
+        } catch (\Exception) {
+            $needsRegeneration = true;
+        }
+
+        if ($needsRegeneration) {
             $this->reportGenerator->generateHtmlReport($testRun);
             $testRun->refresh();
+            $disk = $testRun->storage_disk ?? config('filesystems.default');
         }
 
         $this->validateReportPath($testRun->report_html_path, $testRun->id);
@@ -53,7 +62,14 @@ class ReportController
 
         $disk = $testRun->storage_disk ?? config('filesystems.default');
 
-        if (!$testRun->report_html_path || !Storage::disk($disk)->exists($testRun->report_html_path)) {
+        $exists = false;
+        try {
+            $exists = $testRun->report_html_path && Storage::disk($disk)->exists($testRun->report_html_path);
+        } catch (\Exception) {
+            // Disk unavailable (e.g. S3 disabled)
+        }
+
+        if (!$exists) {
             abort(404, 'Report not yet generated.');
         }
 
@@ -84,7 +100,7 @@ class ReportController
      */
     public function asset(Request $request, TestRun $testRun, string $path): Response
     {
-        if (!auth()->check()) {
+        if (!auth()->check() && !auth('sanctum')->check()) {
             $token  = (string) $request->query('token', '');
             $expiry = (int) $request->query('expires', 0);
             $this->validateShareToken($token, $expiry, $testRun->id);
@@ -94,9 +110,15 @@ class ReportController
             abort(403);
         }
 
-        $disk = $testRun->storage_disk === 's3' ? 's3' : 'public';
+        $disk = $testRun->storage_disk === 's3' ? 's3' : 'local';
 
-        if (!Storage::disk($disk)->exists($path)) {
+        try {
+            $exists = Storage::disk($disk)->exists($path);
+        } catch (\Exception) {
+            abort(404);
+        }
+
+        if (!$exists) {
             abort(404);
         }
 

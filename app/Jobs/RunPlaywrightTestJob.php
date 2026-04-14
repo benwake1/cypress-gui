@@ -14,6 +14,7 @@ use App\Jobs\Concerns\RunsTestSuite;
 use App\Models\TestRun;
 use App\Services\PlaywrightParserService;
 use App\Services\ReportGeneratorService;
+use App\Services\S3ConfigService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -42,6 +43,11 @@ class RunPlaywrightTestJob implements ShouldQueue
         PlaywrightParserService $parser,
         ReportGeneratorService $reporter
     ): void {
+        // Reload S3 config from DB — the queue worker boots once and caches config in
+        // memory. Calling this ensures we pick up any storage changes (e.g. S3 enabled
+        // or disabled via the admin UI) that occurred after the worker started.
+        S3ConfigService::loadFromSettings();
+
         try {
             $this->updateStatus(TestRun::STATUS_CLONING);
 

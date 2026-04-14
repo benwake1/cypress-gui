@@ -140,6 +140,7 @@ Route::middleware(['auth:sanctum', EnsureApiTokenAbility::class.':desktop:admin'
     // Storage / S3
     Route::get('settings/storage', [SettingsController::class, 'storage']);
     Route::put('settings/storage', [SettingsController::class, 'updateStorage']);
+    Route::delete('settings/storage', [SettingsController::class, 'disableStorage']);
     Route::post('settings/storage/migrate', [SettingsController::class, 'migrateStorage'])
         ->middleware('throttle:3,1');
 
