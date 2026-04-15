@@ -10,6 +10,7 @@
 namespace App\Jobs;
 
 use App\Events\TestRunStatusChanged;
+use App\Jobs\CheckSuiteHealthJob;
 use App\Jobs\Concerns\RunsTestSuite;
 use App\Models\TestRun;
 use App\Services\PlaywrightParserService;
@@ -102,6 +103,7 @@ class RunPlaywrightTestJob implements ShouldQueue
                 : "❌ {$freshRun->failed_tests} of {$freshRun->total_tests} tests failed."
             );
 
+            CheckSuiteHealthJob::dispatch($this->run->fresh());
             event(new TestRunStatusChanged($this->run->fresh()));
 
         } catch (\Throwable $e) {
@@ -123,6 +125,7 @@ class RunPlaywrightTestJob implements ShouldQueue
             ]);
 
             $this->log('💥 Error: ' . $e->getMessage());
+            CheckSuiteHealthJob::dispatch($this->run->fresh());
             event(new TestRunStatusChanged($this->run->fresh()));
         } finally {
             $this->cleanup();
@@ -201,6 +204,7 @@ class RunPlaywrightTestJob implements ShouldQueue
             'error_message' => $exception->getMessage(),
             'finished_at' => now(),
         ]);
+        CheckSuiteHealthJob::dispatch($this->run->fresh());
         event(new TestRunStatusChanged($this->run->fresh()));
     }
 }

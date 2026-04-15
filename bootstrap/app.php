@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,4 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         App\Providers\AppServiceProvider::class,
         App\Providers\Filament\AdminPanelProvider::class,
     ])
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('signaldeck:run-scheduled')->everyMinute();
+    })
     ->create();

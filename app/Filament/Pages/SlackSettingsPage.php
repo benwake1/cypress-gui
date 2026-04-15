@@ -42,6 +42,7 @@ class SlackSettingsPage extends Page
             'slack_notifications_enabled' => AppSetting::get('slack_notifications_enabled', '0') === '1',
             'slack_bot_token'             => $this->maskSecret('slack_bot_token'),
             'slack_signing_secret'        => $this->maskSecret('slack_signing_secret'),
+            'slack_breach_channel'        => AppSetting::get('slack_breach_channel'),
         ]);
     }
 
@@ -72,6 +73,78 @@ class SlackSettingsPage extends Page
                             ->helperText('Found under Basic Information → Signing Secret. Used to verify future webhook payloads from Slack.')
                             ->columnSpanFull(),
                     ]),
+
+                Forms\Components\Section::make('Health Breach Alerts')
+                    ->description('Configure a Slack channel to receive suite health breach notifications.')
+                    ->icon('heroicon-o-bell-alert')
+                    ->schema([
+                        Forms\Components\TextInput::make('slack_breach_channel')
+                            ->label('Health Breach Channel ID')
+                            ->placeholder('C01234ABCDE')
+                            ->helperText('Slack channel ID for suite health breach alerts. The SignalDeck bot must be invited to this channel first (/invite @BotName in Slack). Leave blank to disable.')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('test_breach_alert')
+                                ->label('Send Test Breach Alert')
+                                ->icon('heroicon-o-bell-alert')
+                                ->color('warning')
+                                ->action(function (Forms\Get $get) {
+                                    $channelId = $get('slack_breach_channel')
+                                        ?: AppSetting::get('slack_breach_channel');
+
+                                    if (!$channelId) {
+                                        Notification::make()
+                                            ->title('No breach channel configured')
+                                            ->body('Enter and save a Slack channel ID first.')
+                                            ->warning()
+                                            ->send();
+                                        return;
+                                    }
+
+                                    $slack = app(SlackService::class);
+
+                                    if (!$slack->isEnabled()) {
+                                        Notification::make()
+                                            ->title('Slack not configured')
+                                            ->body('Configure and save your Slack bot token first.')
+                                            ->warning()
+                                            ->send();
+                                        return;
+                                    }
+
+                                    $blocks = [
+                                        [
+                                            'type' => 'header',
+                                            'text' => ['type' => 'plain_text', 'text' => '⚠️ Suite Health Breach (Test)', 'emoji' => true],
+                                        ],
+                                        [
+                                            'type' => 'section',
+                                            'text' => [
+                                                'type' => 'mrkdwn',
+                                                'text' => "*This is a test alert from SignalDeck.*\n\nIf you can see this, breach alerts are configured correctly for this channel.",
+                                            ],
+                                        ],
+                                    ];
+
+                                    $sent = $slack->sendDm($channelId, $blocks);
+
+                                    if ($sent) {
+                                        Notification::make()
+                                            ->title('Test alert sent')
+                                            ->body('Check the configured Slack channel.')
+                                            ->success()
+                                            ->send();
+                                    } else {
+                                        Notification::make()
+                                            ->title('Failed to send test alert')
+                                            ->body('Check that the bot is invited to the channel and the channel ID is correct.')
+                                            ->danger()
+                                            ->send();
+                                    }
+                                }),
+                        ])->columnSpanFull(),
+                    ]),
             ])
             ->statePath('data');
     }
@@ -83,6 +156,7 @@ class SlackSettingsPage extends Page
         AppSetting::set('slack_notifications_enabled', ($data['slack_notifications_enabled'] ?? false) ? '1' : '0');
         $this->saveSecretIfChanged('slack_bot_token', $data['slack_bot_token'] ?? '');
         $this->saveSecretIfChanged('slack_signing_secret', $data['slack_signing_secret'] ?? '');
+        AppSetting::set('slack_breach_channel', $data['slack_breach_channel'] ?? '');
 
         Notification::make()
             ->title('Slack settings saved')

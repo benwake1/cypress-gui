@@ -10,6 +10,7 @@
 namespace App\Jobs;
 
 use App\Events\TestRunStatusChanged;
+use App\Jobs\CheckSuiteHealthJob;
 use App\Jobs\Concerns\RunsTestSuite;
 use App\Models\TestRun;
 use App\Services\MochawesomeParserService;
@@ -94,6 +95,7 @@ class RunCypressTestJob implements ShouldQueue
                 : "❌ {$freshRun->failed_tests} of {$freshRun->total_tests} tests failed."
             );
 
+            CheckSuiteHealthJob::dispatch($this->run->fresh());
             event(new TestRunStatusChanged($this->run->fresh()));
 
         } catch (\Throwable $e) {
@@ -115,6 +117,7 @@ class RunCypressTestJob implements ShouldQueue
             ]);
 
             $this->log('💥 Error: ' . $e->getMessage());
+            CheckSuiteHealthJob::dispatch($this->run->fresh());
             event(new TestRunStatusChanged($this->run->fresh()));
         } finally {
             $this->cleanup();
@@ -192,6 +195,7 @@ class RunCypressTestJob implements ShouldQueue
             'error_message' => $exception->getMessage(),
             'finished_at' => now(),
         ]);
+        CheckSuiteHealthJob::dispatch($this->run->fresh());
         event(new TestRunStatusChanged($this->run->fresh()));
     }
 }

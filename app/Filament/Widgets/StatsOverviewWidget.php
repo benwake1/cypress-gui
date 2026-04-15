@@ -30,7 +30,9 @@ class StatsOverviewWidget extends BaseWidget
         $failingRuns = $recentRuns->where('status', 'failed')->count();
         $passRate    = $totalRuns > 0 ? round(($passingRuns / $totalRuns) * 100, 1) : 0;
 
-        $activeRuns = TestRun::whereIn('status', ['pending', 'cloning', 'installing', 'running'])->count();
+        $queuedRuns  = TestRun::where('status', 'pending')->count();
+        $runningRuns = TestRun::whereIn('status', ['cloning', 'installing', 'running'])->count();
+        $activeRuns  = $queuedRuns + $runningRuns;
 
         $avgDuration = TestRun::whereNotNull('duration_ms')
             ->where('created_at', '>=', now()->subDays(7))
@@ -63,10 +65,12 @@ class StatsOverviewWidget extends BaseWidget
                 ->color('info')
                 ->chart($trend),
 
-            Stat::make('Currently Running', $activeRuns)
-                ->description($activeRuns > 0 ? 'Active test jobs in queue' : 'No active runs')
-                ->descriptionIcon('heroicon-m-clock')
-                ->color($activeRuns > 0 ? 'warning' : 'gray'),
+            Stat::make('Active Jobs', $activeRuns)
+                ->description($activeRuns > 0
+                    ? "{$runningRuns} running · {$queuedRuns} queued"
+                    : 'No active runs')
+                ->descriptionIcon($runningRuns > 0 ? 'heroicon-m-play-circle' : 'heroicon-m-clock')
+                ->color($runningRuns > 0 ? 'warning' : ($queuedRuns > 0 ? 'info' : 'gray')),
 
             Stat::make('Avg Duration (7d)', $avgDurationFormatted)
                 ->description('Average test run time')

@@ -71,13 +71,18 @@ class ProjectHealthWidget extends Widget
                 : null;
 
             return [
-                'id'          => $project->id,
-                'name'        => $project->name,
-                'client'      => $project->client->name,
-                'latest'      => $latest,
-                'pass_rate'   => $passRate,
-                'suite_count' => $project->testSuites->count(),
-                'suites'      => $project->testSuites->where('active', true),
+                'id'             => $project->id,
+                'name'           => $project->name,
+                'client'         => $project->client->name,
+                'latest'         => $latest,
+                'pass_rate'      => $passRate,
+                'suite_count'    => $project->testSuites->count(),
+                'suites'         => $project->testSuites->where('active', true),
+                'health_breached' => $project->testSuites()
+                    ->where('active', true)
+                    ->whereNotNull('pass_rate_threshold')
+                    ->get()
+                    ->contains(fn ($s) => $s->is_health_breached),
             ];
         });
     }

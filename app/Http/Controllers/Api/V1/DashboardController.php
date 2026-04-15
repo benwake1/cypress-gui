@@ -31,11 +31,12 @@ class DashboardController extends Controller
         $passRate    = $totalRuns > 0 ? round(($passingRuns / $totalRuns) * 100, 1) : 0;
 
         $currentlyRunning = TestRun::whereIn('status', [
-            TestRun::STATUS_PENDING,
             TestRun::STATUS_CLONING,
             TestRun::STATUS_INSTALLING,
             TestRun::STATUS_RUNNING,
         ])->count();
+
+        $queued = TestRun::where('status', TestRun::STATUS_PENDING)->count();
 
         $avgDuration = TestRun::where('created_at', '>=', $sevenDaysAgo)
             ->whereNotNull('duration_ms')
@@ -47,6 +48,7 @@ class DashboardController extends Controller
             'passing_runs_30d'  => $passingRuns,
             'failed_runs_30d'   => $totalRuns - $passingRuns,
             'currently_running' => $currentlyRunning,
+            'queued'            => $queued,
             'avg_duration_7d_ms' => $avgDuration ? round($avgDuration) : null,
         ]);
     }

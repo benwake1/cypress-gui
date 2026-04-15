@@ -9,7 +9,10 @@
 
 namespace App\Providers;
 
+use App\Events\SuiteHealthBreached;
 use App\Events\TestRunStatusChanged;
+use App\Listeners\SendSuiteHealthBreachEmail;
+use App\Listeners\SendSuiteHealthBreachSlack;
 use App\Listeners\SendTestRunCompletedEmail;
 use App\Listeners\SendTestRunSlackNotification;
 use App\Models\AppSetting;
@@ -40,6 +43,8 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(TestRunStatusChanged::class, SendTestRunCompletedEmail::class);
         Event::listen(TestRunStatusChanged::class, SendTestRunSlackNotification::class);
+        Event::listen(SuiteHealthBreached::class, SendSuiteHealthBreachEmail::class);
+        Event::listen(SuiteHealthBreached::class, SendSuiteHealthBreachSlack::class);
 
         // Redis queue retry_after defaults to 90 s in Laravel's vendor config, which
         // is far shorter than a typical test run. Override it here so jobs are never

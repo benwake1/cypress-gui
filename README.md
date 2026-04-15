@@ -57,7 +57,10 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 - **Role-based access** — Admin (full access) and PM (run tests, view reports only)
 - **User management** — admin panel to create and manage user accounts
 - **Single Sign-On (SSO)** — Google and GitHub OAuth login, configurable from the admin UI
+- **Scheduled runs** — per-suite cron expressions with timezone support; runs are dispatched automatically by `signaldeck:run-scheduled` every minute
+- **Suite health score** — pass rate computed from the last 10 completed runs per suite; configurable SLA threshold triggers email and Slack breach alerts with a 1-hour cooldown
 - **Slack DM notifications** — bot token integration sends a DM to the triggering user when a run completes
+- **Slack breach alerts** — health threshold breaches post a Block Kit message to a configured channel (separate from per-user DMs)
 - **REST API v1** — full Sanctum token-authenticated API for all resources; consumed by the macOS companion app
 - **macOS companion app** — native SwiftUI desktop app for monitoring and triggering runs (separate repo)
 - **Artifact cleanup** — scheduled command to purge screenshots, videos, and reports older than N days
@@ -344,10 +347,11 @@ All test runs are processed asynchronously by a queue worker. Live log output is
 
 ```bash
 php artisan queue:work --queue=cypress --timeout=3600 --tries=1
+php artisan queue:work --queue=default --tries=3 --timeout=60
 php artisan reverb:start
 ```
 
-> **Important:** Both Cypress and Playwright jobs dispatch to the `cypress` queue. The `--queue=cypress` flag is required.
+> **Important:** Both Cypress and Playwright jobs dispatch to the `cypress` queue. Email notifications, Slack alerts, and health breach checks dispatch to the `default` queue. Both workers must be running to process all job types.
 
 > The queue worker caches the application config on startup. After any change to `.env`, restart the worker: `php artisan queue:restart` (or kill and restart the process).
 
@@ -653,6 +657,8 @@ On the project page, open the **Test Suites** tab and create a suite:
 - **Branch override** — leave blank to use the project's default branch
 - **Environment variables** — suite-specific overrides (merged on top of project-level vars)
 - **Timeout** — maximum minutes before the run is killed (default: 60)
+- **Scheduled Runs** — enable a cron expression (e.g. `0 9 * * 1-5` for weekdays at 9am) with an optional timezone; runs are dispatched automatically when the scheduler fires
+- **Health & SLA threshold** — set a minimum pass rate (%); a breach alert is sent via email and Slack when the suite's rolling pass rate drops below it
 
 For **Playwright suites**:
 
@@ -752,9 +758,10 @@ Register the Laravel scheduler with your server's cron (run once, runs all tasks
 
 ### Registered schedule
 
-| Time           | Command        | Description                                             |
-| -------------- | -------------- | ------------------------------------------------------- |
-| Daily at 02:00 | `runs:cleanup` | Deletes artifacts for completed runs older than 30 days |
+| Time           | Command                       | Description                                             |
+| -------------- | ----------------------------- | ------------------------------------------------------- |
+| Every minute   | `signaldeck:run-scheduled`    | Dispatches runs for suites whose cron schedule is due   |
+| Daily at 02:00 | `runs:cleanup`                | Deletes artifacts for completed runs older than 30 days |
 
 The cleanup command removes:
 
@@ -794,6 +801,16 @@ php artisan runs:cleanup
 # Delete artifacts older than 60 days
 php artisan runs:cleanup --days=60
 ```
+
+### `signaldeck:run-scheduled`
+
+Checks all active suites with `schedule_enabled = true` and dispatches a test run for any whose cron expression is due. Called automatically by the Laravel scheduler every minute — also safe to run manually for testing.
+
+```bash
+php artisan signaldeck:run-scheduled
+```
+
+Dispatched runs have `trigger_source = schedule` and `triggered_by = null`. A 50-second dedup window on `last_scheduled_at` prevents double-firing if the command is called twice in quick succession.
 
 ### `runs:regenerate-reports`
 
@@ -914,9 +931,11 @@ The dashboard supports Google and GitHub OAuth login. SSO is configured from **S
 
 ## Slack Notifications
 
+### Run completion DMs
+
 When enabled, the dashboard sends a Slack DM to the user who triggered a test run when it completes (pass or fail).
 
-### Setup
+#### Setup
 
 1. Create a **Slack App** at [api.slack.com/apps](https://api.slack.com/apps):
     - Add the `users:read.email` and `chat:write` OAuth scopes under **Bot Token Scopes**
@@ -924,16 +943,34 @@ When enabled, the dashboard sends a Slack DM to the user who triggered a test ru
     - Copy the **Bot User OAuth Token** (`xoxb-...`)
 2. In the admin panel, go to **Settings → Slack**, enable notifications, paste the bot token, and click **Test Connection**.
 
-### How it works
+#### How it works
 
 - When a run finishes with status `passing` or `failed`, a `TestRunStatusChanged` event is fired.
 - The `SendTestRunSlackNotification` listener looks up the triggering user's Slack ID via their email address (`users.lookupByEmail` API).
 - A Block Kit DM is sent to that user with the run summary (client, project, suite, pass/fail counts, and a link to the report).
 - Each run sends at most one DM (deduplicated via cache).
 
-### Per-user Slack ID override
+#### Per-user Slack ID override
 
 If a user's Slack account uses a different email than their dashboard account, an admin can set a manual **Slack User ID** override on the user's profile in **Admin → Users**.
+
+### Health breach alerts
+
+When a suite's rolling pass rate drops below its configured threshold, a Block Kit message is posted to a configured Slack **channel** (not a DM — breach alerts are project-level and may have no triggering user for scheduled or webhook runs).
+
+#### Setup
+
+1. Invite the SignalDeck bot to your alert channel in Slack (`/invite @BotName`).
+2. Copy the channel ID (right-click the channel → **Copy link** → the ID is the last segment, e.g. `C01234ABCDE`).
+3. In the admin panel, go to **Settings → Slack → Health Breach Channel ID**, paste the channel ID, and save.
+4. Use **Send Test Breach Alert** to verify the bot can post to the channel.
+
+#### How it works
+
+- After every run completes, `CheckSuiteHealthJob` evaluates the suite's pass rate across the last 10 completed runs.
+- If the pass rate is below the configured threshold and no breach alert was sent in the last hour, a `SuiteHealthBreached` event is fired.
+- `SendSuiteHealthBreachSlack` posts a Block Kit message to the configured channel.
+- The 1-hour cooldown prevents alert storms when multiple runs fail in quick succession.
 
 ---
 
