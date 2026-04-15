@@ -1,0 +1,58 @@
+# SignalDeck — GitHub Actions Example
+#
+# Triggers a SignalDeck test run via webhook after a successful deploy (or on push).
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   SIGNALDECK_URL            — Base URL of your SignalDeck instance, e.g. https://signaldeck.example.com
+#   SIGNALDECK_WEBHOOK_SECRET — Plaintext secret from SignalDeck (Projects → Rotate Webhook Secret)
+#   SIGNALDECK_SUITE_ID       — Numeric ID of the test suite to trigger
+
+name: Trigger SignalDeck Tests
+
+on:
+  push:
+    branches:
+      - main
+  # Or trigger after a deploy workflow completes:
+  # workflow_run:
+  #   workflows: ["Deploy"]
+  #   types: [completed]
+
+jobs:
+  trigger-signaldeck:
+    name: Trigger SignalDeck
+    runs-on: ubuntu-latest
+    # Only run on success (remove this if triggering on push rather than workflow_run)
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Trigger SignalDeck webhook
+        env:
+          SIGNALDECK_URL:            ${{ secrets.SIGNALDECK_URL }}
+          SIGNALDECK_WEBHOOK_SECRET: ${{ secrets.SIGNALDECK_WEBHOOK_SECRET }}
+          SIGNALDECK_SUITE_ID:       ${{ secrets.SIGNALDECK_SUITE_ID }}
+        run: |
+          # Build the JSON payload
+          PAYLOAD=$(printf '{"suite_id":%s,"branch":"%s"}' \
+            "$SIGNALDECK_SUITE_ID" \
+            "${GITHUB_REF_NAME}")
+
+          # Compute HMAC-SHA256 signature
+          SIGNATURE=$(printf '%s' "$PAYLOAD" \
+            | openssl dgst -sha256 -hmac "$SIGNALDECK_WEBHOOK_SECRET" \
+            | awk '{print $2}')
+
+          # POST to SignalDeck
+          HTTP_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+            --request POST \
+            --url "${SIGNALDECK_URL}/api/v1/webhook/trigger" \
+            --header "Content-Type: application/json" \
+            --header "X-Webhook-Signature: ${SIGNATURE}" \
+            --data "$PAYLOAD")
+
+          echo "SignalDeck responded: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" != "201" ]; then
+            echo "Webhook trigger failed with status $HTTP_STATUS"
+            exit 1
+          fi
