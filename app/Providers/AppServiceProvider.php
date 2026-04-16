@@ -9,18 +9,11 @@
 
 namespace App\Providers;
 
-use App\Events\SuiteHealthBreached;
-use App\Events\TestRunStatusChanged;
-use App\Listeners\SendSuiteHealthBreachEmail;
-use App\Listeners\SendSuiteHealthBreachSlack;
-use App\Listeners\SendTestRunCompletedEmail;
-use App\Listeners\SendTestRunSlackNotification;
 use App\Models\AppSetting;
 use App\Services\S3ConfigService;
 use App\Services\SlackService;
 use App\Services\SsoConfigService;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,11 +33,6 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
             // DB not ready (e.g., fresh install before migrations). Fall back to .env config.
         }
-
-        Event::listen(TestRunStatusChanged::class, SendTestRunCompletedEmail::class);
-        Event::listen(TestRunStatusChanged::class, SendTestRunSlackNotification::class);
-        Event::listen(SuiteHealthBreached::class, SendSuiteHealthBreachEmail::class);
-        Event::listen(SuiteHealthBreached::class, SendSuiteHealthBreachSlack::class);
 
         // Redis queue retry_after defaults to 90 s in Laravel's vendor config, which
         // is far shorter than a typical test run. Override it here so jobs are never
