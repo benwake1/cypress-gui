@@ -138,6 +138,7 @@ class SettingsController extends Controller
             'slack_notifications_enabled' => AppSetting::get('slack_notifications_enabled', '0') === '1',
             'slack_has_bot_token'         => (bool) AppSetting::get('slack_bot_token'),
             'slack_has_signing_secret'    => (bool) AppSetting::get('slack_signing_secret'),
+            'slack_breach_channel'        => AppSetting::get('slack_breach_channel') ?? '',
         ]);
     }
 
@@ -155,6 +156,10 @@ class SettingsController extends Controller
             }
         }
 
+        if (array_key_exists('slack_breach_channel', $data)) {
+            AppSetting::set('slack_breach_channel', $data['slack_breach_channel'] ?? '');
+        }
+
         return response()->json(['message' => 'Slack settings updated.']);
     }
 
@@ -163,6 +168,39 @@ class SettingsController extends Controller
         $result = $slack->testConnection();
 
         return response()->json($result, $result['ok'] ? 200 : 422);
+    }
+
+    public function testSlackBreach(SlackService $slack): JsonResponse
+    {
+        $channelId = AppSetting::get('slack_breach_channel');
+
+        if (! $channelId) {
+            return response()->json(['ok' => false, 'message' => 'No breach channel configured. Save a channel ID first.'], 422);
+        }
+
+        if (! $slack->isEnabled()) {
+            return response()->json(['ok' => false, 'message' => 'Slack is not enabled. Configure and save your bot token first.'], 422);
+        }
+
+        $blocks = [
+            [
+                'type' => 'header',
+                'text' => ['type' => 'plain_text', 'text' => '⚠️ Suite Health Breach (Test)', 'emoji' => true],
+            ],
+            [
+                'type' => 'section',
+                'text' => [
+                    'type' => 'mrkdwn',
+                    'text' => "*This is a test alert from SignalDeck.*\n\nIf you can see this, breach alerts are configured correctly for this channel.",
+                ],
+            ],
+        ];
+
+        $sent = $slack->sendDm($channelId, $blocks);
+
+        return $sent
+            ? response()->json(['ok' => true, 'message' => 'Test breach alert sent. Check the configured Slack channel.'])
+            : response()->json(['ok' => false, 'message' => 'Failed to send. Check that the bot is invited to the channel and the channel ID is correct.'], 422);
     }
 
     // MARK: - Storage / S3

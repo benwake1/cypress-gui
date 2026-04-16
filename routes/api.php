@@ -136,6 +136,8 @@ Route::middleware(['auth:sanctum', EnsureApiTokenAbility::class.':desktop:admin'
     Route::put('settings/slack', [SettingsController::class, 'updateSlack']);
     Route::post('settings/slack/test', [SettingsController::class, 'testSlack'])
         ->middleware('throttle:3,1');
+    Route::post('settings/slack/test-breach', [SettingsController::class, 'testSlackBreach'])
+        ->middleware('throttle:3,1');
 
     // Storage / S3
     Route::get('settings/storage', [SettingsController::class, 'storage']);

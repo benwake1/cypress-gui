@@ -25,6 +25,7 @@ class UpdateSlackSettingsRequest extends FormRequest
             'slack_notifications_enabled' => ['sometimes', 'boolean'],
             'slack_bot_token'             => ['sometimes', 'nullable', 'string'],
             'slack_signing_secret'        => ['sometimes', 'nullable', 'string'],
+            'slack_breach_channel'        => ['sometimes', 'nullable', 'string'],
         ];
     }
 
