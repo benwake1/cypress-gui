@@ -10,6 +10,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\TestRun;
+use App\Services\ScheduledRunsService;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\DB;
@@ -30,9 +31,9 @@ class StatsOverviewWidget extends BaseWidget
         $failingRuns = $recentRuns->where('status', 'failed')->count();
         $passRate    = $totalRuns > 0 ? round(($passingRuns / $totalRuns) * 100, 1) : 0;
 
-        $queuedRuns  = TestRun::where('status', 'pending')->count();
-        $runningRuns = TestRun::whereIn('status', ['cloning', 'installing', 'running'])->count();
-        $activeRuns  = $queuedRuns + $runningRuns;
+        $queuedRuns    = TestRun::where('status', 'pending')->count();
+        $runningRuns   = TestRun::whereIn('status', ['cloning', 'installing', 'running'])->count();
+        $scheduledToday = ScheduledRunsService::countForToday();
 
         $avgDuration = TestRun::whereNotNull('duration_ms')
             ->where('created_at', '>=', now()->subDays(7))
@@ -65,17 +66,25 @@ class StatsOverviewWidget extends BaseWidget
                 ->color('info')
                 ->chart($trend),
 
-            Stat::make('Active Jobs', $activeRuns)
-                ->description($activeRuns > 0
-                    ? "{$runningRuns} running · {$queuedRuns} queued"
-                    : 'No active runs')
-                ->descriptionIcon($runningRuns > 0 ? 'heroicon-m-play-circle' : 'heroicon-m-clock')
-                ->color($runningRuns > 0 ? 'warning' : ($queuedRuns > 0 ? 'info' : 'gray')),
-
             Stat::make('Avg Duration (7d)', $avgDurationFormatted)
                 ->description('Average test run time')
                 ->descriptionIcon('heroicon-m-clock')
                 ->color('info'),
+
+            Stat::make('Running Now', $runningRuns)
+                ->description($runningRuns > 0 ? 'Jobs actively executing' : 'No jobs running')
+                ->descriptionIcon('heroicon-m-play-circle')
+                ->color($runningRuns > 0 ? 'warning' : 'gray'),
+
+            Stat::make('Queued', $queuedRuns)
+                ->description($queuedRuns > 0 ? 'Waiting for a worker' : 'Queue is empty')
+                ->descriptionIcon('heroicon-m-queue-list')
+                ->color($queuedRuns > 0 ? 'info' : 'gray'),
+
+            Stat::make('Scheduled Today', $scheduledToday)
+                ->description($scheduledToday > 0 ? 'Cron runs due before midnight' : 'No scheduled runs today')
+                ->descriptionIcon('heroicon-m-calendar-days')
+                ->color($scheduledToday > 0 ? 'primary' : 'gray'),
         ];
     }
 }

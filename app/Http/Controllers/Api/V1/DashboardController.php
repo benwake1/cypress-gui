@@ -11,6 +11,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\TestRun;
+use App\Services\ScheduledRunsService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 
@@ -43,12 +44,13 @@ class DashboardController extends Controller
             ->avg('duration_ms');
 
         return response()->json([
-            'pass_rate_30d'     => $passRate,
-            'total_runs_30d'    => $totalRuns,
-            'passing_runs_30d'  => $passingRuns,
-            'failed_runs_30d'   => $totalRuns - $passingRuns,
-            'currently_running' => $currentlyRunning,
-            'queued'            => $queued,
+            'pass_rate_30d'      => $passRate,
+            'total_runs_30d'     => $totalRuns,
+            'passing_runs_30d'   => $passingRuns,
+            'failed_runs_30d'    => $totalRuns - $passingRuns,
+            'currently_running'  => $currentlyRunning,
+            'queued'             => $queued,
+            'scheduled_today'    => ScheduledRunsService::countForToday(),
             'avg_duration_7d_ms' => $avgDuration ? round($avgDuration) : null,
         ]);
     }
