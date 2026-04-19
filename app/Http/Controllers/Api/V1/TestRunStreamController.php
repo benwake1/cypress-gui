@@ -139,6 +139,10 @@ class TestRunStreamController
         $user   = $request->user();
         $cursor = max(0, (int) $request->header('Last-Event-ID', 0));
 
+        if (! $user) {
+            abort(401);
+        }
+
         return response()->stream(function () use ($user, $cursor) {
             set_time_limit(0);
             ignore_user_abort(true);
