@@ -159,6 +159,8 @@ npm run dev
 
 > **Report CSS:** The branded HTML report inlines its CSS from the compiled Vite build (`public/build/`). `npm run dev` does **not** update report styles — run `npm run build` then regenerate the report to see changes to `branded.blade.php`.
 
+> **SSE (live log streaming):** When running via `php artisan serve`, Server-Sent Events work out of the box — no extra configuration required. If you are running locally via **Laravel Herd or Valet** (which use Nginx), add the same SSE location block described in [Step 6 of the Deployment section](#step-6--nginx) to your site's Nginx config; without `fastcgi_buffering off` and `fastcgi_read_timeout 600s`, Nginx will buffer the stream and no log lines will appear in the run view until the job finishes.
+
 ---
 
 ## Environment Variables
@@ -1467,7 +1469,6 @@ The default Laravel `.gitignore` already excludes everything sensitive:
 - `APP_KEY`
 - `DB_PASSWORD`
 - `REDIS_PASSWORD`
-- `REVERB_APP_SECRET`
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (if using S3)
 - `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET` (if using SSO)
 
