@@ -9,6 +9,7 @@
 
 namespace App\Models;
 
+use Cron\CronExpression;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -34,6 +35,11 @@ class TestSuite extends Model
         'playwright_retries',
         'timeout_minutes',
         'active',
+        'schedule_cron',
+        'schedule_enabled',
+        'schedule_timezone',
+        'last_scheduled_at',
+        'pass_rate_threshold',
     ];
 
     protected $casts = [
@@ -42,6 +48,10 @@ class TestSuite extends Model
         'playwright_projects' => 'array',
         'playwright_workers' => 'integer',
         'playwright_retries' => 'integer',
+        'schedule_enabled'    => 'boolean',
+        'last_scheduled_at'   => 'datetime',
+        'pass_rate_threshold' => 'float',
+        'last_breach_at'      => 'datetime',
     ];
 
     protected static function booted(): void
@@ -98,5 +108,59 @@ class TestSuite extends Model
     public function getLatestRunAttribute(): ?TestRun
     {
         return $this->testRuns()->latest()->first();
+    }
+
+    /**
+     * Next scheduled run time based on the suite's cron expression and timezone.
+     * Returns null if scheduling is disabled or the expression is invalid.
+     */
+    public function nextRunAt(): ?\Carbon\Carbon
+    {
+        if (!$this->schedule_enabled || !$this->schedule_cron) {
+            return null;
+        }
+
+        try {
+            $tz       = $this->schedule_timezone ?? config('app.timezone');
+            $nextDate = (new CronExpression($this->schedule_cron))
+                ->getNextRunDate('now', 0, false, $tz);
+            return \Carbon\Carbon::instance($nextDate);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Pass rate computed from the last 10 completed runs for this suite.
+     * Returns 0.0 if no completed runs exist.
+     */
+    public function getHealthScoreAttribute(): float
+    {
+        $recentRuns = $this->testRuns()
+            ->whereIn('status', ['passing', 'failed'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        if ($recentRuns->isEmpty()) {
+            return 0.0;
+        }
+
+        return round(
+            $recentRuns->where('status', 'passing')->count() / $recentRuns->count() * 100,
+            1
+        );
+    }
+
+    /**
+     * True when a threshold is configured and the current health score is below it.
+     */
+    public function getIsHealthBreachedAttribute(): bool
+    {
+        if ($this->pass_rate_threshold === null) {
+            return false;
+        }
+
+        return $this->health_score < $this->pass_rate_threshold;
     }
 }

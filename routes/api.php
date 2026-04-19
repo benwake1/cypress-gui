@@ -11,10 +11,11 @@ use App\Http\Controllers\Api\V1\SsoAuthController;
 use App\Http\Controllers\Api\V1\TestGeneratorController;
 use App\Http\Controllers\Api\V1\TestHistoryController;
 use App\Http\Controllers\Api\V1\TestRunController;
+use App\Http\Controllers\Api\V1\TestRunStreamController;
 use App\Http\Controllers\Api\V1\TestSuiteController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\WebhookController;
 use App\Http\Middleware\EnsureApiTokenAbility;
-use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -30,6 +31,10 @@ use Illuminate\Support\Facades\Route;
 // ── Public (unauthenticated) ────────────────────────────────────────────
 
 Route::get('health', HealthController::class);
+
+// ── Webhooks (public, signature-authenticated) ────────────────────────
+Route::post('webhook/trigger', [WebhookController::class, 'trigger'])
+    ->name('api.v1.webhook.trigger');
 
 // ── Auth ────────────────────────────────────────────────────────────────
 
@@ -108,6 +113,7 @@ Route::middleware(['auth:sanctum', EnsureApiTokenAbility::class.':desktop:admin'
     Route::delete('projects/{project}', [ProjectController::class, 'destroy']);
     Route::post('projects/{project}/generate-key', [ProjectController::class, 'generateKey']);
     Route::post('projects/{project}/discover-projects', [ProjectController::class, 'discoverProjects']);
+    Route::post('projects/{project}/rotate-webhook-secret', [ProjectController::class, 'rotateSecret']);
 
     // Test Suites (CRUD)
     Route::post('projects/{project}/suites', [TestSuiteController::class, 'store']);
@@ -130,6 +136,15 @@ Route::middleware(['auth:sanctum', EnsureApiTokenAbility::class.':desktop:admin'
     Route::put('settings/slack', [SettingsController::class, 'updateSlack']);
     Route::post('settings/slack/test', [SettingsController::class, 'testSlack'])
         ->middleware('throttle:3,1');
+    Route::post('settings/slack/test-breach', [SettingsController::class, 'testSlackBreach'])
+        ->middleware('throttle:3,1');
+
+    // Storage / S3
+    Route::get('settings/storage', [SettingsController::class, 'storage']);
+    Route::put('settings/storage', [SettingsController::class, 'updateStorage']);
+    Route::delete('settings/storage', [SettingsController::class, 'disableStorage']);
+    Route::post('settings/storage/migrate', [SettingsController::class, 'migrateStorage'])
+        ->middleware('throttle:3,1');
 
     // Users
     Route::get('users', [UserController::class, 'index']);
@@ -139,8 +154,15 @@ Route::middleware(['auth:sanctum', EnsureApiTokenAbility::class.':desktop:admin'
     Route::delete('users/{user}', [UserController::class, 'destroy']);
 });
 
-// ── Broadcasting auth (for WebSocket token auth) ────────────────────────
+// ── SSE Streams ──────────────────────────────────────────────────────────
+// auth:sanctum handles both session cookies (web) and Bearer tokens (macOS).
+// These routes must sit outside EnsureApiTokenAbility because that middleware
+// checks currentAccessToken(), which is null for session-authenticated web users.
 
-Route::middleware('auth:sanctum')->post('broadcasting/auth', function () {
-    return Broadcast::auth(request());
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('test-runs/{testRun}/stream', [TestRunStreamController::class, 'stream'])
+        ->name('api.v1.test-runs.stream');
+
+    Route::get('events/stream', [TestRunStreamController::class, 'globalStream'])
+        ->name('api.v1.events.stream');
 });

@@ -1,0 +1,59 @@
+# SignalDeck — GitLab CI Example
+#
+# Triggers a SignalDeck test run via webhook after a successful deploy (or on push).
+#
+# Required CI/CD variables (Settings → CI/CD → Variables):
+#   SIGNALDECK_URL            — Base URL of your SignalDeck instance, e.g. https://signaldeck.example.com
+#   SIGNALDECK_WEBHOOK_SECRET — Plaintext secret from SignalDeck (Projects → Rotate Webhook Secret)
+#   SIGNALDECK_SUITE_ID       — Numeric ID of the test suite to trigger
+#
+# Mark SIGNALDECK_WEBHOOK_SECRET as "Masked" in GitLab so it never appears in job logs.
+
+stages:
+  - deploy
+  - test
+
+# Your existing deploy job (example)
+# deploy:
+#   stage: deploy
+#   script:
+#     - echo "Deploy steps here"
+
+trigger-signaldeck:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl openssl
+  script:
+    # Build the JSON payload
+    - |
+      PAYLOAD=$(printf '{"suite_id":%s,"branch":"%s"}' \
+        "$SIGNALDECK_SUITE_ID" \
+        "$CI_COMMIT_REF_NAME")
+
+    # Compute HMAC-SHA256 signature
+    - |
+      SIGNATURE=$(printf '%s' "$PAYLOAD" \
+        | openssl dgst -sha256 -hmac "$SIGNALDECK_WEBHOOK_SECRET" \
+        | awk '{print $2}')
+
+    # POST to SignalDeck
+    - |
+      HTTP_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+        --request POST \
+        --url "${SIGNALDECK_URL}/api/v1/webhook/trigger" \
+        --header "Content-Type: application/json" \
+        --header "X-Webhook-Signature: ${SIGNATURE}" \
+        --data "$PAYLOAD")
+
+      echo "SignalDeck responded: $HTTP_STATUS"
+
+      if [ "$HTTP_STATUS" != "201" ]; then
+        echo "Webhook trigger failed with status $HTTP_STATUS"
+        exit 1
+      fi
+  rules:
+    # Only run on the main branch, and only when the previous stage succeeded
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never

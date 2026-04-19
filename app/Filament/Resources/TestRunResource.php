@@ -148,7 +148,8 @@ class TestRunResource extends Resource
                     ->color('gray'),
 
                 Tables\Columns\TextColumn::make('triggeredBy.name')
-                    ->label('By'),
+                    ->label('By')
+                    ->default(fn (TestRun $record) => $record->trigger_source?->label() ?? '—'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Started')
@@ -168,6 +169,18 @@ class TestRunResource extends Resource
                         'error' => 'Error',
                         'cancelled' => 'Cancelled',
                     ]),
+
+                Tables\Filters\SelectFilter::make('storage_disk')
+                    ->label('Storage')
+                    ->options([
+                        's3'   => 'S3',
+                        'local' => 'Local',
+                    ])
+                    ->query(fn ($query, $data) => match ($data['value'] ?? null) {
+                        's3'    => $query->where('storage_disk', 's3'),
+                        'local' => $query->where(fn ($q) => $q->whereNull('storage_disk')->orWhere('storage_disk', '!=', 's3')),
+                        default => $query,
+                    }),
             ])
             ->headerActions([
                 Tables\Actions\Action::make('trigger_run')

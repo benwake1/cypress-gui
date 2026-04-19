@@ -41,9 +41,13 @@ class ReportGeneratorService
         ])->render();
 
         $path = "reports/run-{$run->id}/report.html";
-        Storage::disk('local')->put($path, $html);
+        $disk = config('filesystems.default');
+        Storage::disk($disk)->put($path, $html);
 
-        $run->update(['report_html_path' => $path]);
+        $run->update([
+            'report_html_path' => $path,
+            'storage_disk'     => $disk === 's3' ? 's3' : null,
+        ]);
 
         return $path;
     }

@@ -11,6 +11,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class TestResult extends Model
 {
@@ -44,12 +45,53 @@ class TestResult extends Model
     public function getScreenshotUrlsAttribute(): array
     {
         if (!$this->screenshot_paths) return [];
-        return array_map(fn($path) => asset('storage/' . $path), $this->screenshot_paths);
+
+        $disk = $this->testRun?->storage_disk ?? config('filesystems.default');
+
+        return array_map(function (string $path) use ($disk): string {
+            if ($disk === 's3') {
+                return Storage::disk('s3')->temporaryUrl($path, now()->addHours(1));
+            }
+            return $this->signedAssetUrl($path);
+        }, $this->screenshot_paths);
     }
 
     public function getVideoUrlAttribute(): ?string
     {
-        return $this->video_path ? asset('storage/' . $this->video_path) : null;
+        if (!$this->video_path) return null;
+
+        $disk = $this->testRun?->storage_disk ?? config('filesystems.default');
+
+        if ($disk === 's3') {
+            return Storage::disk('s3')->temporaryUrl($this->video_path, now()->addHours(1));
+        }
+
+        return $this->signedAssetUrl($this->video_path);
+    }
+
+    /**
+     * Screenshot URLs routed through Laravel — stable regardless of storage backend.
+     * Use these when baking URLs into static HTML (reports), not for dynamic views.
+     */
+    public function screenshotProxyUrls(): array
+    {
+        if (!$this->screenshot_paths) return [];
+
+        return array_map(
+            fn (string $path) => route('reports.asset', ['testRun' => $this->test_run_id, 'path' => $path]),
+            $this->screenshot_paths
+        );
+    }
+
+    /**
+     * Video URL routed through Laravel — stable regardless of storage backend.
+     * Use this when baking URLs into static HTML (reports), not for dynamic views.
+     */
+    public function videoProxyUrl(): ?string
+    {
+        if (!$this->video_path) return null;
+
+        return route('reports.asset', ['testRun' => $this->test_run_id, 'path' => $this->video_path]);
     }
 
     public function getDurationFormattedAttribute(): string
@@ -67,5 +109,21 @@ class TestResult extends Model
     public function isFailed(): bool
     {
         return $this->status === 'failed';
+    }
+
+    /**
+     * Generate a time-limited signed asset URL for local-disk files.
+     * Uses the same HMAC signing as the report share feature so unauthenticated
+     * clients (e.g. AsyncImage in the macOS app) can load assets without needing
+     * an Authorization header — matching the behaviour of S3 temporary URLs.
+     */
+    private function signedAssetUrl(string $path): string
+    {
+        $expiry   = now()->addHour()->timestamp;
+        $shareKey = hash_hmac('sha256', 'report-share-v1', config('app.key'));
+        $token    = hash_hmac('sha256', "report-{$this->test_run_id}-{$expiry}", $shareKey);
+
+        return route('reports.asset', ['testRun' => $this->test_run_id, 'path' => $path])
+            . '?token=' . $token . '&expires=' . $expiry;
     }
 }

@@ -9,6 +9,7 @@
 
 namespace App\Filament\Resources\ProjectResource\RelationManagers;
 
+use App\Rules\ValidCronExpression;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -111,6 +112,47 @@ class TestSuitesRelationManager extends RelationManager
                 ->columnSpanFull(),
 
             Forms\Components\Toggle::make('active')->default(true),
+
+            Forms\Components\Section::make('Scheduled Runs')
+                ->icon('heroicon-o-clock')
+                ->collapsed()
+                ->columns(2)
+                ->schema([
+                    Forms\Components\Toggle::make('schedule_enabled')
+                        ->label('Enable scheduled runs')
+                        ->live()
+                        ->columnSpanFull(),
+
+                    Forms\Components\TextInput::make('schedule_cron')
+                        ->label('Cron expression')
+                        ->placeholder('0 9 * * 1-5')
+                        ->helperText('minute hour day month weekday — e.g. 0 9 * * 1-5 runs weekdays at 9am')
+                        ->visible(fn (Forms\Get $get) => (bool) $get('schedule_enabled'))
+                        ->rules([new ValidCronExpression()])
+                        ->columnSpan(1),
+
+                    Forms\Components\TextInput::make('schedule_timezone')
+                        ->label('Timezone')
+                        ->placeholder('Europe/London (blank = server default)')
+                        ->visible(fn (Forms\Get $get) => (bool) $get('schedule_enabled'))
+                        ->rule('timezone')
+                        ->columnSpan(1),
+                ]),
+
+            Forms\Components\Section::make('Health & SLA')
+                ->icon('heroicon-o-shield-check')
+                ->collapsed()
+                ->schema([
+                    Forms\Components\TextInput::make('pass_rate_threshold')
+                        ->label('Pass rate threshold (%)')
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->placeholder('e.g. 80')
+                        ->helperText('Triggers a breach alert when the suite\'s pass rate across the last 10 runs drops below this value. Leave blank to disable.')
+                        ->suffix('%')
+                        ->columnSpanFull(),
+                ]),
         ])->columns(2);
     }
 
@@ -118,10 +160,25 @@ class TestSuitesRelationManager extends RelationManager
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')->label('ID')->badge()->color('gray'),
                 Tables\Columns\TextColumn::make('name')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('spec_pattern')->limit(40)->copyable(),
                 Tables\Columns\TextColumn::make('branch_override')->placeholder('project default')->badge()->color('warning'),
                 Tables\Columns\TextColumn::make('timeout_minutes')->suffix('m')->label('Timeout'),
+                Tables\Columns\IconColumn::make('schedule_enabled')
+                    ->label('Scheduled')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-clock')
+                    ->falseIcon('heroicon-o-minus')
+                    ->trueColor('info')
+                    ->falseColor('gray')
+                    ->tooltip(fn ($record) => $record->schedule_cron ?? null),
+                Tables\Columns\TextColumn::make('pass_rate_threshold')
+                    ->label('Threshold')
+                    ->suffix('%')
+                    ->placeholder('—')
+                    ->badge()
+                    ->color(fn ($record) => $record->is_health_breached ? 'danger' : 'gray'),
                 Tables\Columns\IconColumn::make('active')->boolean(),
             ])
             ->headerActions([

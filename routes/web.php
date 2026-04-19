@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\Route;
 // Redirect root to Filament admin
 Route::get('/', fn () => redirect('/admin'));
 
+// Error page preview — remove before deploying to production
+Route::get('/dev/error-preview/{status?}', function (int $status = 500) {
+    return response()->view('errors.error', [
+        'status' => $status,
+        'ref'    => 'ABCD1234',
+    ], $status);
+});
+
 // Laravel's auth middleware redirects unauthenticated users to route('login') —
 // point that at Filament's login page.
 Route::get('/login', fn () => redirect('/admin/login'))->name('login');
@@ -27,5 +35,10 @@ Route::prefix('reports')->group(function () {
     // Shareable signed URL (no auth required — for client delivery)
     Route::get('/share/{testRun}/{token}', [ReportController::class, 'share'])
         ->name('reports.share');
+
+    // Proxy route for report assets (screenshots, videos) — auth or valid share token
+    Route::get('/run/{testRun}/asset/{path}', [ReportController::class, 'asset'])
+        ->name('reports.asset')
+        ->where('path', '.+');
 
 });

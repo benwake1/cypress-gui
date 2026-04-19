@@ -10,10 +10,12 @@
 namespace App\Jobs;
 
 use App\Events\TestRunStatusChanged;
+use App\Jobs\CheckSuiteHealthJob;
 use App\Jobs\Concerns\RunsTestSuite;
 use App\Models\TestRun;
 use App\Services\MochawesomeParserService;
 use App\Services\ReportGeneratorService;
+use App\Services\S3ConfigService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -42,6 +44,11 @@ class RunCypressTestJob implements ShouldQueue
         MochawesomeParserService $parser,
         ReportGeneratorService $reporter
     ): void {
+        // Reload S3 config from DB — the queue worker boots once and caches config in
+        // memory. Calling this ensures we pick up any storage changes (e.g. S3 enabled
+        // or disabled via the admin UI) that occurred after the worker started.
+        S3ConfigService::loadFromSettings();
+
         try {
             $this->updateStatus(TestRun::STATUS_CLONING);
 
@@ -65,7 +72,7 @@ class RunCypressTestJob implements ShouldQueue
             $mergedJsonPath = $this->mergeMochawesomeReports();
 
             $storedJsonPath = "reports/run-{$this->run->id}/merged.json";
-            Storage::disk('local')->put($storedJsonPath, file_get_contents($mergedJsonPath));
+            Storage::disk($this->run->storage_disk ?? config('filesystems.default'))->put($storedJsonPath, file_get_contents($mergedJsonPath));
             $this->run->update(['merged_json_path' => $storedJsonPath]);
 
             $this->log('💾 Storing test results...');
@@ -88,6 +95,7 @@ class RunCypressTestJob implements ShouldQueue
                 : "❌ {$freshRun->failed_tests} of {$freshRun->total_tests} tests failed."
             );
 
+            CheckSuiteHealthJob::dispatch($this->run->fresh());
             event(new TestRunStatusChanged($this->run->fresh()));
 
         } catch (\Throwable $e) {
@@ -109,6 +117,7 @@ class RunCypressTestJob implements ShouldQueue
             ]);
 
             $this->log('💥 Error: ' . $e->getMessage());
+            CheckSuiteHealthJob::dispatch($this->run->fresh());
             event(new TestRunStatusChanged($this->run->fresh()));
         } finally {
             $this->cleanup();
@@ -186,6 +195,7 @@ class RunCypressTestJob implements ShouldQueue
             'error_message' => $exception->getMessage(),
             'finished_at' => now(),
         ]);
+        CheckSuiteHealthJob::dispatch($this->run->fresh());
         event(new TestRunStatusChanged($this->run->fresh()));
     }
 }

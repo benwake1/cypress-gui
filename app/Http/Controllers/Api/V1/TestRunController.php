@@ -9,6 +9,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\TriggerSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\TriggerTestRunRequest;
 use App\Http\Resources\V1\TestResultResource;
@@ -42,6 +43,10 @@ class TestRunController extends Controller
             $query->where('runner_type', $request->input('runner_type'));
         }
 
+        if ($request->filled('storage_disk')) {
+            $query->where('storage_disk', $request->input('storage_disk'));
+        }
+
         return TestRunResource::collection($query->latest()->paginate(25));
     }
 
@@ -58,12 +63,14 @@ class TestRunController extends Controller
         $project = $suite->project;
 
         $run = TestRun::create([
-            'project_id'    => $project->id,
-            'test_suite_id' => $suite->id,
-            'runner_type'   => $project->runner_type,
-            'triggered_by'  => $request->user()->id,
-            'status'        => TestRun::STATUS_PENDING,
-            'branch'        => $request->validated('branch') ?? $suite->effective_branch ?? $project->default_branch ?? 'main',
+            'project_id'     => $project->id,
+            'test_suite_id'  => $suite->id,
+            'runner_type'    => $project->runner_type,
+            'triggered_by'   => $request->user()->id,
+            'trigger_source' => TriggerSource::Manual,
+            'storage_disk'   => config('filesystems.default'),
+            'status'         => TestRun::STATUS_PENDING,
+            'branch'         => $request->validated('branch') ?? $suite->effective_branch ?? $project->default_branch ?? 'main',
         ]);
 
         $run->dispatchJob();

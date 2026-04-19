@@ -44,7 +44,7 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 - **Multi-project** — each project maps to a separate Git repository with its own deploy key
 - **Test suites** — define spec patterns, branch overrides, and env vars per suite
 - **One-click test runs** — trigger tests from the admin UI, no CI pipeline required
-- **Live console output** — watch test output update in real time via WebSockets (Laravel Reverb), with Livewire polling as a fallback
+- **Live console output** — watch test output stream in real time via Server-Sent Events (SSE); no WebSocket server required
 - **Result parsing** — Mochawesome (Cypress) and Playwright JSON reports parsed into the database
 - **Playwright project discovery** — auto-detect available browsers/devices from `playwright.config.ts`
 - **Performance tuning** — admin-only parallel workers and retry overrides for Playwright suites
@@ -57,7 +57,10 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 - **Role-based access** — Admin (full access) and PM (run tests, view reports only)
 - **User management** — admin panel to create and manage user accounts
 - **Single Sign-On (SSO)** — Google and GitHub OAuth login, configurable from the admin UI
+- **Scheduled runs** — per-suite cron expressions with timezone support; runs are dispatched automatically by `signaldeck:run-scheduled` every minute
+- **Suite health score** — pass rate computed from the last 10 completed runs per suite; configurable SLA threshold triggers email and Slack breach alerts with a 1-hour cooldown
 - **Slack DM notifications** — bot token integration sends a DM to the triggering user when a run completes
+- **Slack breach alerts** — health threshold breaches post a Block Kit message to a configured channel (separate from per-user DMs)
 - **REST API v1** — full Sanctum token-authenticated API for all resources; consumed by the macOS companion app
 - **macOS companion app** — native SwiftUI desktop app for monitoring and triggering runs (separate repo)
 - **Artifact cleanup** — scheduled command to purge screenshots, videos, and reports older than N days
@@ -76,7 +79,7 @@ A self-hosted **Cypress & Playwright** testing dashboard built with **Laravel 12
 | Admin panel         | Filament v3                                             |
 | Frontend reactivity | Livewire 3 + Alpine.js                                  |
 | Asset pipeline      | Vite                                                    |
-| Real-time transport | Laravel Reverb (WebSockets)                             |
+| Real-time transport | Server-Sent Events (SSE)                                |
 | API authentication  | Laravel Sanctum (Bearer tokens)                         |
 | OAuth / SSO         | Laravel Socialite + filament-socialite                  |
 | Queue driver        | Database (dev) / Redis (production)                     |
@@ -150,16 +153,13 @@ php artisan serve
 # Terminal 2 — Queue worker (processes test jobs; must be running to execute test suites)
 php artisan queue:work --queue=cypress --timeout=3600 --tries=1
 
-# Terminal 3 — Reverb WebSocket server (live console output)
-php artisan reverb:start
-
-# Terminal 4 — Vite dev server (hot module reloading)
+# Terminal 3 — Vite dev server (hot module reloading)
 npm run dev
 ```
 
 > **Report CSS:** The branded HTML report inlines its CSS from the compiled Vite build (`public/build/`). `npm run dev` does **not** update report styles — run `npm run build` then regenerate the report to see changes to `branded.blade.php`.
 
-> **Shortcut:** A `Procfile` is included for use with [hivemind](https://github.com/DarthSim/hivemind) or [overmind](https://github.com/DarthSim/overmind). Run `hivemind` from the project root to start the queue worker and Reverb together.
+> **SSE (live log streaming):** When running via `php artisan serve`, Server-Sent Events work out of the box — no extra configuration required. If you are running locally via **Laravel Herd or Valet** (which use Nginx), add the same SSE location block described in [Step 6 of the Deployment section](#step-6--nginx) to your site's Nginx config; without `fastcgi_buffering off` and `fastcgi_read_timeout 600s`, Nginx will buffer the stream and no log lines will appear in the run view until the job finishes.
 
 ---
 
@@ -235,25 +235,6 @@ REDIS_PORT=6379
 
 > If using `QUEUE_CONNECTION=database` locally, run `php artisan queue:table && php artisan migrate` to create the jobs table.
 
-### Reverb (WebSockets)
-
-```env
-BROADCAST_CONNECTION=reverb
-
-REVERB_APP_ID=my-app-id
-REVERB_APP_KEY=my-app-key
-REVERB_APP_SECRET=my-app-secret
-REVERB_HOST=localhost
-REVERB_PORT=8080
-REVERB_SCHEME=http
-
-VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
-VITE_REVERB_HOST="${REVERB_HOST}"
-VITE_REVERB_PORT="${REVERB_PORT}"
-VITE_REVERB_SCHEME="${REVERB_SCHEME}"
-```
-
-> In production, Reverb typically runs on a separate port (e.g. 8080) proxied through Nginx. See [Deployment](#deployment) for the Nginx WebSocket proxy configuration.
 
 ### Git & Node
 
@@ -338,32 +319,22 @@ Reports are intentionally **not** stored in the public disk. They are served thr
 
 ## Queue & Real-time Workers
 
-All test runs are processed asynchronously by a queue worker. Live log output is broadcast over WebSockets via Laravel Reverb.
+All test runs are processed asynchronously by a queue worker. Live log output streams to connected clients via Server-Sent Events (SSE) — no separate WebSocket process is required.
 
 ### Starting workers (development)
 
 ```bash
 php artisan queue:work --queue=cypress --timeout=3600 --tries=1
-php artisan reverb:start
+php artisan queue:work --queue=default --tries=3 --timeout=60
 ```
 
-> **Important:** Both Cypress and Playwright jobs dispatch to the `cypress` queue. The `--queue=cypress` flag is required.
+> **Important:** Both Cypress and Playwright jobs dispatch to the `cypress` queue. Email notifications, Slack alerts, and health breach checks dispatch to the `default` queue. Both workers must be running to process all job types.
 
 > The queue worker caches the application config on startup. After any change to `.env`, restart the worker: `php artisan queue:restart` (or kill and restart the process).
 
-### Procfile
-
-The included `Procfile` defines the queue worker process for hivemind/overmind:
-
-```
-queue: php artisan queue:work --queue=cypress --timeout=3600
-```
-
-> Start Reverb separately with `php artisan reverb:start`, or add it as a process in your own `Procfile`/Supervisor config.
-
 ### Production (Supervisor)
 
-Use Supervisor to keep the queue worker and Reverb running and automatically restart on failure.
+Use Supervisor to keep the queue worker running and automatically restart on failure.
 
 Create `/etc/supervisor/conf.d/cypress-dashboard.conf`:
 
@@ -379,18 +350,6 @@ user=www-data
 numprocs=1
 redirect_stderr=true
 stdout_logfile=/var/www/cypress-dashboard/storage/logs/queue.log
-
-[program:cypress-reverb]
-process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/cypress-dashboard/artisan reverb:start --host=0.0.0.0 --port=8080
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-user=www-data
-numprocs=1
-redirect_stderr=true
-stdout_logfile=/var/www/cypress-dashboard/storage/logs/reverb.log
 ```
 
 ```bash
@@ -432,6 +391,170 @@ https://TOKEN@github.com/your-org/your-repo.git
 ```
 
 Leave the deploy key fields blank.
+
+---
+
+## Webhook Integration
+
+Webhook triggers let you start a test run from any CI pipeline without storing an API token — requests are authenticated via an HMAC-SHA256 signature computed with a per-project secret.
+
+### How it works
+
+1. Your CI pipeline builds a JSON payload and computes `HMAC-SHA256(raw_body, webhook_secret)`.
+2. The signature is sent in the `X-Webhook-Signature` request header (hex digest).
+3. The server verifies the signature before dispatching the run. Unsigned or incorrectly signed requests are rejected with `403`.
+
+### Endpoint
+
+```
+POST /api/v1/webhook/trigger
+Content-Type: application/json
+X-Webhook-Signature: <hmac-sha256-hex-of-body>
+```
+
+### Payload fields
+
+| Field      | Type      | Required | Description                                              |
+| ---------- | --------- | -------- | -------------------------------------------------------- |
+| `suite_id` | `integer` | Yes      | ID of the test suite to run.                             |
+| `branch`   | `string`  | No       | Branch to check out. Defaults to the suite's configured branch. |
+| `env`      | `object`  | No       | Key/value pairs that override environment variables for this run only. |
+
+Example payload:
+
+```json
+{
+  "suite_id": 1,
+  "branch": "main",
+  "env": {
+    "BASE_URL": "https://staging.example.com"
+  }
+}
+```
+
+### Generate / rotate the webhook secret
+
+In the admin panel: **Management → Projects → Edit Project → Webhook Secret → Generate Secret** (or **Rotate Secret** to replace an existing one). The plaintext secret is shown once — store it immediately in your CI provider's secret manager.
+
+### GitHub Actions
+
+Store the secret as `TD_WEBHOOK_SECRET` in **Settings → Secrets and variables → Actions**.
+
+```yaml
+# .github/workflows/trigger-tests.yml
+name: Trigger Test Dashboard
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      suite_id:
+        description: 'Suite ID to run'
+        required: true
+        default: '1'
+      branch:
+        description: 'Branch to test (leave blank for triggering branch)'
+        required: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger test run
+        env:
+          TD_SECRET: ${{ secrets.TD_WEBHOOK_SECRET }}
+          SUITE_ID: ${{ inputs.suite_id || '1' }}
+          BRANCH: ${{ inputs.branch || github.ref_name }}
+        run: |
+          PAYLOAD=$(jq -cn --argjson suite_id "$SUITE_ID" --arg branch "$BRANCH" \
+            '{suite_id: $suite_id, branch: $branch}')
+          SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$TD_SECRET" | awk '{print $NF}')
+          curl -sf -X POST "https://your-domain.com/api/v1/webhook/trigger" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Signature: $SIG" \
+            -d "$PAYLOAD"
+```
+
+### GitLab CI
+
+Store the secret as `TD_WEBHOOK_SECRET` in **Settings → CI/CD → Variables** (masked, protected).
+
+```yaml
+# .gitlab-ci.yml (job)
+trigger_tests:
+  stage: .pre
+  image: alpine:latest
+  variables:
+    SUITE_ID: "1"
+    BRANCH: $CI_COMMIT_REF_NAME
+  before_script:
+    - apk add --no-cache curl openssl jq
+  script:
+    - >
+      PAYLOAD=$(jq -cn --argjson suite_id "$SUITE_ID" --arg branch "$BRANCH"
+      '{suite_id: $suite_id, branch: $branch}')
+    - SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$TD_WEBHOOK_SECRET" | awk '{print $NF}')
+    - >
+      curl -sf -X POST "https://your-domain.com/api/v1/webhook/trigger"
+      -H "Content-Type: application/json"
+      -H "X-Webhook-Signature: $SIG"
+      -d "$PAYLOAD"
+  only:
+    - main
+```
+
+### Bitbucket Pipelines
+
+Store the secret as `TD_WEBHOOK_SECRET` in **Settings → Pipelines → Repository variables**.
+
+```yaml
+# bitbucket-pipelines.yml
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Trigger Test Dashboard
+          image: alpine:latest
+          script:
+            - apk add --no-cache curl openssl jq
+            - >
+              PAYLOAD=$(jq -cn
+              --argjson suite_id "${SUITE_ID:-1}"
+              --arg branch "${OVERRIDE_BRANCH:-$BITBUCKET_BRANCH}"
+              '{suite_id: $suite_id, branch: $branch}')
+            - SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$TD_WEBHOOK_SECRET" | awk '{print $NF}')
+            - >
+              curl -sf -X POST "https://your-domain.com/api/v1/webhook/trigger"
+              -H "Content-Type: application/json"
+              -H "X-Webhook-Signature: $SIG"
+              -d "$PAYLOAD"
+
+# Repository variables:
+#   TD_WEBHOOK_SECRET  — the generated secret
+#   SUITE_ID           — optional; defaults to 1
+#   OVERRIDE_BRANCH    — optional; defaults to the triggering branch
+```
+
+### Shell / cURL
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+TD_SECRET="${TD_WEBHOOK_SECRET}"
+SUITE_ID=1
+
+PAYLOAD=$(jq -cn --argjson suite_id "$SUITE_ID" --arg branch "main" \
+  '{suite_id: $suite_id, branch: $branch}')
+SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$TD_SECRET" | awk '{print $NF}')
+
+curl -sf -X POST "https://your-domain.com/api/v1/webhook/trigger" \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Signature: $SIG" \
+  -d "$PAYLOAD"
+```
+
+> **Note:** `jq` is used to build the payload because it correctly handles branch names containing `/` or special characters. If `jq` is unavailable, ensure your manual JSON escaping is correct — the HMAC is computed over the exact bytes sent as the request body.
 
 ---
 
@@ -489,6 +612,8 @@ On the project page, open the **Test Suites** tab and create a suite:
 - **Branch override** — leave blank to use the project's default branch
 - **Environment variables** — suite-specific overrides (merged on top of project-level vars)
 - **Timeout** — maximum minutes before the run is killed (default: 60)
+- **Scheduled Runs** — enable a cron expression (e.g. `0 9 * * 1-5` for weekdays at 9am) with an optional timezone; runs are dispatched automatically when the scheduler fires
+- **Health & SLA threshold** — set a minimum pass rate (%); a breach alert is sent via email and Slack when the suite's rolling pass rate drops below it
 
 For **Playwright suites**:
 
@@ -499,7 +624,7 @@ For **Playwright suites**:
 
 Go to **Testing → Test Runs** and click **Run Tests** in the top-right. Select project, suite, and branch, then click **Run**. The job is dispatched to the queue immediately.
 
-Click **View** on the queued run to open the live view, where console output updates in real time via WebSockets.
+Click **View** on the queued run to open the live view, where console output streams in real time via SSE.
 
 ### 5. Generate Test Scaffolds (optional)
 
@@ -535,7 +660,7 @@ Runner type is set at the project level. Each run snapshots the runner type at c
 ### Shared behaviour
 
 - Both runners use a shared `RunsTestSuite` trait for clone, install, streaming, and cleanup
-- Console output is broadcast in real time over WebSockets (Laravel Reverb) and also flushed to DB for reconnections
+- Console output is flushed to the database as it arrives and streamed to connected clients via SSE at `/api/v1/test-runs/{id}/stream`
 - Status progresses through `pending` → `cloning` → `installing` → `running` → `passing`/`failed`/`error`
 - If 0 tests are found or executed, the run is marked `error`
 - If any step fails, the run is marked `error` and the error message is stored
@@ -588,9 +713,10 @@ Register the Laravel scheduler with your server's cron (run once, runs all tasks
 
 ### Registered schedule
 
-| Time           | Command        | Description                                             |
-| -------------- | -------------- | ------------------------------------------------------- |
-| Daily at 02:00 | `runs:cleanup` | Deletes artifacts for completed runs older than 30 days |
+| Time           | Command                       | Description                                             |
+| -------------- | ----------------------------- | ------------------------------------------------------- |
+| Every minute   | `signaldeck:run-scheduled`    | Dispatches runs for suites whose cron schedule is due   |
+| Daily at 02:00 | `runs:cleanup`                | Deletes artifacts for completed runs older than 30 days |
 
 The cleanup command removes:
 
@@ -631,6 +757,16 @@ php artisan runs:cleanup
 php artisan runs:cleanup --days=60
 ```
 
+### `signaldeck:run-scheduled`
+
+Checks all active suites with `schedule_enabled = true` and dispatches a test run for any whose cron expression is due. Called automatically by the Laravel scheduler every minute — also safe to run manually for testing.
+
+```bash
+php artisan signaldeck:run-scheduled
+```
+
+Dispatched runs have `trigger_source = schedule` and `triggered_by = null`. A 50-second dedup window on `last_scheduled_at` prevents double-firing if the command is called twice in quick succession.
+
 ### `runs:regenerate-reports`
 
 Regenerates HTML reports for all completed runs. Useful after changes to the report template.
@@ -647,7 +783,6 @@ php artisan migrate:fresh --seed                 # Drop all tables, re-run, and 
 php artisan storage:link                         # Create public disk symlink (run after fresh deploy)
 php artisan queue:work --queue=cypress --timeout=3600  # Start queue worker
 php artisan queue:restart                        # Signal running workers to restart after next job
-php artisan reverb:start                         # Start WebSocket server
 php artisan schedule:run                         # Run due scheduled tasks (called by cron)
 php artisan config:cache                         # Cache config (use in production)
 php artisan route:cache                          # Cache routes (use in production)
@@ -750,9 +885,11 @@ The dashboard supports Google and GitHub OAuth login. SSO is configured from **S
 
 ## Slack Notifications
 
+### Run completion DMs
+
 When enabled, the dashboard sends a Slack DM to the user who triggered a test run when it completes (pass or fail).
 
-### Setup
+#### Setup
 
 1. Create a **Slack App** at [api.slack.com/apps](https://api.slack.com/apps):
     - Add the `users:read.email` and `chat:write` OAuth scopes under **Bot Token Scopes**
@@ -760,16 +897,34 @@ When enabled, the dashboard sends a Slack DM to the user who triggered a test ru
     - Copy the **Bot User OAuth Token** (`xoxb-...`)
 2. In the admin panel, go to **Settings → Slack**, enable notifications, paste the bot token, and click **Test Connection**.
 
-### How it works
+#### How it works
 
 - When a run finishes with status `passing` or `failed`, a `TestRunStatusChanged` event is fired.
 - The `SendTestRunSlackNotification` listener looks up the triggering user's Slack ID via their email address (`users.lookupByEmail` API).
 - A Block Kit DM is sent to that user with the run summary (client, project, suite, pass/fail counts, and a link to the report).
 - Each run sends at most one DM (deduplicated via cache).
 
-### Per-user Slack ID override
+#### Per-user Slack ID override
 
 If a user's Slack account uses a different email than their dashboard account, an admin can set a manual **Slack User ID** override on the user's profile in **Admin → Users**.
+
+### Health breach alerts
+
+When a suite's rolling pass rate drops below its configured threshold, a Block Kit message is posted to a configured Slack **channel** (not a DM — breach alerts are project-level and may have no triggering user for scheduled or webhook runs).
+
+#### Setup
+
+1. Invite the SignalDeck bot to your alert channel in Slack (`/invite @BotName`).
+2. Copy the channel ID (right-click the channel → **Copy link** → the ID is the last segment, e.g. `C01234ABCDE`).
+3. In the admin panel, go to **Settings → Slack → Health Breach Channel ID**, paste the channel ID, and save.
+4. Use **Send Test Breach Alert** to verify the bot can post to the channel.
+
+#### How it works
+
+- After every run completes, `CheckSuiteHealthJob` evaluates the suite's pass rate across the last 10 completed runs.
+- If the pass rate is below the configured threshold and no breach alert was sent in the last hour, a `SuiteHealthBreached` event is fired.
+- `SendSuiteHealthBreachSlack` posts a Block Kit message to the configured channel.
+- The 1-hour cooldown prevents alert storms when multiple runs fail in quick succession.
 
 ---
 
@@ -871,7 +1026,6 @@ cypress-dashboard/
 │   ├── web.php                          # Web + report routes
 │   └── console.php                      # Scheduled tasks
 ├── .env.example                         # Environment variable template
-├── Procfile                             # Process definitions for hivemind/overmind
 ├── composer.json
 └── package.json
 ```
@@ -885,8 +1039,7 @@ Browser / macOS App
   │
   ├── Filament Admin Panel (/admin)
   │     Livewire + Alpine.js
-  │     WebSocket (Reverb) → live log + status updates
-  │     wire:poll fallback → pollStatus() on reconnect
+  │     SSE (EventSource) → live log + status updates per run
   │
   ├── Report Controller (/reports/...)
   │     /run/{id}/html    — requires auth middleware
@@ -895,6 +1048,8 @@ Browser / macOS App
   └── REST API (/api/v1)
         Sanctum Bearer token authentication
         Ability-scoped routes: desktop:read / desktop:write / desktop:admin
+        SSE streams: /test-runs/{id}/stream  (per-run log + status)
+                     /events/stream          (global run updates + dashboard stats)
 
 Queue Worker (--queue=cypress)
   ├── RunCypressTestJob
@@ -903,14 +1058,13 @@ Queue Worker (--queue=cypress)
         Clone → Install → Install Browsers → Run Playwright → Parse JSON → Store → Report
 
   Both use RunsTestSuite trait: shared clone, install, stream, cleanup logic
-  Console output broadcast over WebSockets (Reverb) + flushed to DB every 3s
+  Console output flushed to DB as it arrives and streamed to clients via SSE
+
+  Status changes recorded in run_events table; global SSE stream tails this table
 
   On completion → TestRunStatusChanged event
     ├── SendTestRunCompletedEmail listener → email to triggering user
     └── SendTestRunSlackNotification listener → Slack DM to triggering user
-
-Reverb WebSocket Server
-  Channels: test-run.{id}  →  log lines + status changes
 
 Storage
   ├── local disk (private)   — HTML reports
@@ -1138,14 +1292,13 @@ server {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
-    # Reverb WebSocket proxy
-    location /app {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+    # SSE streams — disable buffering and extend read timeout for long-lived connections
+    location ~ ^/api/v1/(test-runs/[0-9]+/stream|events/stream) {
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_buffering    off;
+        fastcgi_read_timeout 600s;
     }
 
     location = /favicon.ico { access_log off; log_not_found off; }
@@ -1190,23 +1343,12 @@ stopasgroup=true
 killasgroup=true
 redirect_stderr=true
 stdout_logfile=/var/log/supervisor/cypress-queue.log
-
-[program:cypress-reverb]
-command=php /var/www/cypress-dashboard/artisan reverb:start --host=0.0.0.0 --port=8080
-directory=/var/www/cypress-dashboard
-user=cypressapp
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-redirect_stderr=true
-stdout_logfile=/var/log/supervisor/cypress-reverb.log
 ```
 
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start cypress-queue cypress-reverb
+sudo supervisorctl start cypress-queue
 sudo supervisorctl status
 ```
 
@@ -1250,10 +1392,6 @@ DB_USERNAME=cypress
 DB_PASSWORD=your-strong-password
 
 QUEUE_CONNECTION=database
-
-REVERB_HOST=your-domain.com
-REVERB_PORT=443
-REVERB_SCHEME=https
 ```
 
 ---
@@ -1331,7 +1469,6 @@ The default Laravel `.gitignore` already excludes everything sensitive:
 - `APP_KEY`
 - `DB_PASSWORD`
 - `REDIS_PASSWORD`
-- `REVERB_APP_SECRET`
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (if using S3)
 - `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET` (if using SSO)
 
@@ -1346,7 +1483,7 @@ The default Laravel `.gitignore` already excludes everything sensitive:
 The link was generated before the most recent `APP_KEY` change (changing the key invalidates all HMAC tokens), or the link is over 30 days old. Generate a new link from the run view.
 
 **Live log not updating in the run view**
-Check that Reverb is running (`php artisan reverb:start`) and that the `VITE_REVERB_*` env vars match `REVERB_*`. In production, verify the Nginx WebSocket proxy for `/app` is configured correctly. The view will fall back to polling if WebSockets are unavailable.
+Verify the queue worker is running (log output is only written during job execution). In production, confirm the Nginx SSE location block for `/api/v1/test-runs/{id}/stream` has `fastcgi_buffering off` and `fastcgi_read_timeout 600s` — without these, Nginx will buffer the stream and no events will reach the browser.
 
 **Queue jobs not running / stuck in pending**
 Ensure the queue worker is listening on the correct queue: `php artisan queue:work --queue=cypress`. If using Redis, confirm it's running (`redis-cli ping` → `PONG`) and `QUEUE_CONNECTION=redis` is set.

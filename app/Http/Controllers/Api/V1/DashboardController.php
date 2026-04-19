@@ -11,12 +11,24 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\TestRun;
+use App\Services\ScheduledRunsService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 
 class DashboardController extends Controller
 {
     public function stats(): JsonResponse
+    {
+        return response()->json(static::computeStats());
+    }
+
+    /**
+     * Compute dashboard stats as a plain array.
+     *
+     * Extracted so it can be called from TestRunObserver without
+     * instantiating a controller or constructing a JsonResponse.
+     */
+    public static function computeStats(): array
     {
         $thirtyDaysAgo = Carbon::now()->subDays(30);
         $sevenDaysAgo  = Carbon::now()->subDays(7);
@@ -31,23 +43,26 @@ class DashboardController extends Controller
         $passRate    = $totalRuns > 0 ? round(($passingRuns / $totalRuns) * 100, 1) : 0;
 
         $currentlyRunning = TestRun::whereIn('status', [
-            TestRun::STATUS_PENDING,
             TestRun::STATUS_CLONING,
             TestRun::STATUS_INSTALLING,
             TestRun::STATUS_RUNNING,
         ])->count();
 
+        $queued = TestRun::where('status', TestRun::STATUS_PENDING)->count();
+
         $avgDuration = TestRun::where('created_at', '>=', $sevenDaysAgo)
             ->whereNotNull('duration_ms')
             ->avg('duration_ms');
 
-        return response()->json([
-            'pass_rate_30d'     => $passRate,
-            'total_runs_30d'    => $totalRuns,
-            'passing_runs_30d'  => $passingRuns,
-            'failed_runs_30d'   => $totalRuns - $passingRuns,
-            'currently_running' => $currentlyRunning,
+        return [
+            'pass_rate_30d'      => $passRate,
+            'total_runs_30d'     => $totalRuns,
+            'passing_runs_30d'   => $passingRuns,
+            'failed_runs_30d'    => $totalRuns - $passingRuns,
+            'currently_running'  => $currentlyRunning,
+            'queued'             => $queued,
+            'scheduled_today'    => ScheduledRunsService::countForToday(),
             'avg_duration_7d_ms' => $avgDuration ? round($avgDuration) : null,
-        ]);
+        ];
     }
 }

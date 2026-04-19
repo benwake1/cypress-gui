@@ -9,6 +9,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Enums\TriggerSource;
 use App\Filament\Resources\TestRunResource\Pages\ViewTestRun;
 use App\Models\Project;
 use App\Models\TestRun;
@@ -34,12 +35,14 @@ class ProjectHealthWidget extends Widget
 
         $project = Project::findOrFail($projectId);
         $run = TestRun::create([
-            'project_id'    => $projectId,
-            'test_suite_id' => $suiteId,
-            'runner_type'   => $project->runner_type,
-            'triggered_by'  => auth()->id(),
-            'status'        => TestRun::STATUS_PENDING,
-            'branch'        => $suite->effective_branch,
+            'project_id'     => $projectId,
+            'test_suite_id'  => $suiteId,
+            'runner_type'    => $project->runner_type,
+            'triggered_by'   => auth()->id(),
+            'trigger_source' => TriggerSource::Manual,
+            'storage_disk'   => config('filesystems.default'),
+            'status'         => TestRun::STATUS_PENDING,
+            'branch'         => $suite->effective_branch,
         ]);
 
         $run->dispatchJob();
@@ -68,13 +71,18 @@ class ProjectHealthWidget extends Widget
                 : null;
 
             return [
-                'id'          => $project->id,
-                'name'        => $project->name,
-                'client'      => $project->client->name,
-                'latest'      => $latest,
-                'pass_rate'   => $passRate,
-                'suite_count' => $project->testSuites->count(),
-                'suites'      => $project->testSuites->where('active', true),
+                'id'             => $project->id,
+                'name'           => $project->name,
+                'client'         => $project->client->name,
+                'latest'         => $latest,
+                'pass_rate'      => $passRate,
+                'suite_count'    => $project->testSuites->count(),
+                'suites'         => $project->testSuites->where('active', true),
+                'health_breached' => $project->testSuites()
+                    ->where('active', true)
+                    ->whereNotNull('pass_rate_threshold')
+                    ->get()
+                    ->contains(fn ($s) => $s->is_health_breached),
             ];
         });
     }

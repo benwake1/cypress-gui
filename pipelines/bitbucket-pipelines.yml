@@ -1,0 +1,50 @@
+# SignalDeck — Bitbucket Pipelines Example
+#
+# Triggers a SignalDeck test run via webhook after a successful deploy (or on push).
+#
+# Required repository variables (Repository settings → Repository variables):
+#   SIGNALDECK_URL            — Base URL of your SignalDeck instance, e.g. https://signaldeck.example.com
+#   SIGNALDECK_WEBHOOK_SECRET — Plaintext secret from SignalDeck (Projects → Rotate Webhook Secret)
+#   SIGNALDECK_SUITE_ID       — Numeric ID of the test suite to trigger
+#
+# Mark SIGNALDECK_WEBHOOK_SECRET as "Secured" so it is masked in logs.
+
+image: alpine:latest
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Trigger SignalDeck Tests
+          script:
+            - apk add --no-cache curl openssl
+
+            # Build the JSON payload
+            - PAYLOAD=$(printf '{"suite_id":%s,"branch":"%s"}' "$SIGNALDECK_SUITE_ID" "$BITBUCKET_BRANCH")
+
+            # Compute HMAC-SHA256 signature
+            - SIGNATURE=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$SIGNALDECK_WEBHOOK_SECRET" | awk '{print $2}')
+
+            # POST to SignalDeck
+            - |
+              HTTP_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+                --request POST \
+                --url "${SIGNALDECK_URL}/api/v1/webhook/trigger" \
+                --header "Content-Type: application/json" \
+                --header "X-Webhook-Signature: ${SIGNATURE}" \
+                --data "$PAYLOAD")
+
+              echo "SignalDeck responded: $HTTP_STATUS"
+
+              if [ "$HTTP_STATUS" != "201" ]; then
+                echo "Webhook trigger failed with status $HTTP_STATUS"
+                exit 1
+              fi
+
+  # Alternatively, trigger after a deploy step:
+  # custom:
+  #   trigger-signaldeck-manually:
+  #     - step:
+  #         name: Trigger SignalDeck Tests
+  #         script:
+  #           - (same script as above)

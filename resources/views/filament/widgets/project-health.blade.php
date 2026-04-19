@@ -22,7 +22,14 @@
                 ">
                     <div class="flex items-start justify-between mb-3">
                         <div>
-                            <p class="font-bold text-sm">{{ $project['name'] }}</p>
+                            <p class="font-bold text-sm flex items-center gap-1">
+                                {{ $project['name'] }}
+                                @if($project['health_breached'])
+                                    <span class="inline-flex items-center gap-0.5 text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 px-1.5 py-0.5 rounded-full">
+                                        ⚠️ Health breach
+                                    </span>
+                                @endif
+                            </p>
                             <p class="text-xs text-gray-500">{{ $project['client'] }}</p>
                         </div>
                         <div class="text-right">

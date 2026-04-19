@@ -9,6 +9,7 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Rules\ValidCronExpression;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Auth\Access\AuthorizationException;
 
@@ -30,6 +31,10 @@ class StoreTestSuiteRequest extends FormRequest
             'playwright_retries'   => ['nullable', 'integer', 'min:0'],
             'timeout_minutes'      => ['nullable', 'integer', 'min:1', 'max:360'],
             'env_variables'        => ['nullable', 'array'],
+            'schedule_cron'        => ['nullable', 'string', 'max:100', new ValidCronExpression()],
+            'schedule_enabled'     => ['nullable', 'boolean'],
+            'schedule_timezone'    => ['nullable', 'string', 'max:64', 'timezone'],
+            'pass_rate_threshold'  => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 
