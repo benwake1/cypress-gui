@@ -119,6 +119,15 @@
                       </tr>
                     </table>
 
+                    @if($billingUrl)
+                    {{-- Billing portal link --}}
+                    <p style="margin:28px 0 0;font-size:13px;color:#475569;line-height:1.6;">
+                      To upgrade, downgrade, or cancel your subscription, use your
+                      <a href="{{ $billingUrl }}" style="color:#00d4aa;text-decoration:none;">billing portal</a>.
+                      Keep this email — it contains your unique billing link.
+                    </p>
+                    @endif
+
                   </td>
                 </tr>
               </table>

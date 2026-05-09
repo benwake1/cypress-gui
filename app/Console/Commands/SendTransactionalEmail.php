@@ -15,6 +15,7 @@ class SendTransactionalEmail extends Command
                             {--email= : Recipient email address}
                             {--password= : Admin password (welcome only)}
                             {--url= : Dashboard URL}
+                            {--billing-url= : Stripe billing portal URL (welcome only)}
                             {--from-plan= : Old plan name (resize-complete only)}
                             {--to-plan= : New plan name (resize-complete only)}';
 
@@ -43,10 +44,11 @@ class SendTransactionalEmail extends Command
 
     private function sendWelcome(string $email): void
     {
-        $url      = $this->option('url') ?? config('app.url');
-        $password = $this->option('password') ?? '';
+        $url        = $this->option('url') ?? config('app.url');
+        $password   = $this->option('password') ?? '';
+        $billingUrl = $this->option('billing-url') ?? '';
 
-        Mail::to($email)->send(new WelcomeMail($email, $url, $password));
+        Mail::to($email)->send(new WelcomeMail($email, $url, $password, $billingUrl));
     }
 
     private function sendResizeComplete(string $email): void

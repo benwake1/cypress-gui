@@ -12,6 +12,7 @@ class WelcomeMail extends Mailable
         public string $customerEmail,
         public string $dashboardUrl,
         public string $adminPassword,
+        public string $billingUrl = '',
     ) {}
 
     public function envelope(): Envelope
