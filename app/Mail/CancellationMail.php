@@ -15,7 +15,7 @@ class CancellationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your SignalDeck subscription has been cancelled',
+            subject: 'Your SignalDeck CI subscription has been cancelled',
         );
     }
 

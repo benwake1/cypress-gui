@@ -26,7 +26,7 @@ class ResizeCompleteMail extends Mailable
     {
         $label = ucfirst($this->direction);
         return new Envelope(
-            subject: "{$label} to " . ucfirst($this->toPlan) . ' — SignalDeck',
+            subject: "{$label} to " . ucfirst($this->toPlan) . ' — SignalDeck CI',
         );
     }
 

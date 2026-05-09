@@ -18,7 +18,7 @@ class WelcomeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your SignalDeck instance is ready',
+            subject: 'Your SignalDeck CI instance is ready',
         );
     }
 
