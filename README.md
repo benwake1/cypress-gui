@@ -776,6 +776,30 @@ Regenerates HTML reports for all completed runs. Useful after changes to the rep
 php artisan runs:regenerate-reports
 ```
 
+### `purge-runs`
+
+Permanently deletes test runs (and their associated results and artifacts) by ID or criteria. Use with care — this is irreversible.
+
+```bash
+php artisan purge-runs
+```
+
+### `test-s3-connection`
+
+Validates the S3 configuration in `.env` by attempting a test upload and delete. Useful for confirming credentials and bucket access before migrating artifacts.
+
+```bash
+php artisan test-s3-connection
+```
+
+### `artifact-migration`
+
+Migrates existing local run artifacts (screenshots, videos, reports) to S3 storage. Run once after configuring S3 credentials to move historical artifacts without re-running tests.
+
+```bash
+php artisan artifact-migration
+```
+
 ### Standard Laravel Commands
 
 ```bash
@@ -933,7 +957,7 @@ When a suite's rolling pass rate drops below its configured threshold, a Block K
 
 A native **SwiftUI macOS app** provides a lightweight desktop interface for monitoring runs and triggering new ones without opening a browser. It connects to the dashboard REST API using a Sanctum token and supports SSO login via a custom URL scheme.
 
-The macOS app lives in a **separate private repository**. And is not subjet to the open source approach as the rest of the project.
+The macOS app lives in a **separate private repository**. And is not subject to the open source approach as the rest of the project.
 
 ---
 
@@ -943,9 +967,14 @@ The macOS app lives in a **separate private repository**. And is not subjet to t
 cypress-dashboard/
 ├── app/
 │   ├── Console/Commands/
+│   │   ├── ArtifactMigrationCommand.php  # artifact-migration (move local artifacts to S3)
 │   │   ├── CleanupOldArtifacts.php       # runs:cleanup
 │   │   ├── MakeAdminUser.php             # make:admin
-│   │   └── RegenerateReports.php         # runs:regenerate-reports
+│   │   ├── PurgeRunsCommand.php          # purge-runs
+│   │   ├── RegenerateReports.php         # runs:regenerate-reports
+│   │   ├── ScheduledRunCommand.php       # signaldeck:run-scheduled
+│   │   ├── SendTransactionalEmail.php    # send-transactional-email
+│   │   └── TestS3Connection.php          # test-s3-connection
 │   ├── Events/
 │   │   ├── TestRunStatusChanged.php      # Broadcast: status, counts, report URLs
 │   │   └── TestRunLogReceived.php        # Broadcast: live log lines
@@ -996,6 +1025,7 @@ cypress-dashboard/
 │   │   ├── AppSetting.php               # Key/value store for DB-backed settings
 │   │   ├── Client.php
 │   │   ├── Project.php                  # Encrypted deploy key + env vars
+│   │   ├── RunEvent.php                 # Run status change events (SSE streaming)
 │   │   ├── TestRun.php                  # Status constants, URL accessors
 │   │   ├── TestResult.php               # Per-test outcomes, media paths
 │   │   ├── TestSuite.php                # Spec patterns, branch override
@@ -1009,6 +1039,8 @@ cypress-dashboard/
 │       ├── PlaywrightParserService.php   # Parses Playwright JSON → TestResult rows
 │       ├── PlaywrightConfigReaderService.php  # Discovers browser projects from repo config
 │       ├── ReportGeneratorService.php    # Renders HTML report
+│       ├── S3ConfigService.php           # S3 configuration and connection helpers
+│       ├── ScheduledRunsService.php      # Evaluates and dispatches due scheduled runs
 │       ├── SlackService.php              # Slack API: token validation, user lookup, DM sending
 │       ├── SsoConfigService.php          # Reads SSO provider config from DB or .env
 │       └── TestGeneratorService.php      # Generates Cypress/Playwright e-commerce test ZIPs
@@ -1103,10 +1135,16 @@ test_suites
   playwright_projects (JSON, nullable),
   playwright_workers (nullable),
   playwright_retries (nullable),
-  timeout_minutes, active, deleted_at, timestamps
+  timeout_minutes,
+  schedule_cron (nullable), schedule_enabled, schedule_timezone (nullable),
+  last_scheduled_at (nullable),
+  pass_rate_threshold (nullable), last_breach_at (nullable),
+  active, deleted_at, timestamps
 
 test_runs
   id, project_id, test_suite_id, triggered_by (user_id),
+  trigger_source (manual|schedule|webhook|api, nullable),
+  storage_disk (local|s3, nullable),
   runner_type (cypress|playwright),
   status, branch, commit_sha,
   total_tests, passed_tests, failed_tests, pending_tests,
@@ -1122,6 +1160,7 @@ test_results
 
 users
   id, name, email, password, role (admin|pm),
+  avatar_url (nullable, populated via OAuth/SSO),
   slack_user_id (nullable override),
   timestamps
 
@@ -1344,16 +1383,27 @@ stopasgroup=true
 killasgroup=true
 redirect_stderr=true
 stdout_logfile=/var/log/supervisor/cypress-queue.log
+
+[program:cypress-default-queue]
+command=php /var/www/cypress-dashboard/artisan queue:work --queue=default --sleep=3 --tries=3 --timeout=60
+directory=/var/www/cypress-dashboard
+user=cypressapp
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+redirect_stderr=true
+stdout_logfile=/var/log/supervisor/cypress-default-queue.log
 ```
 
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start cypress-queue
+sudo supervisorctl start all
 sudo supervisorctl status
 ```
 
-> **Note:** `--timeout=3600` on the queue worker is important. Test runs can take up to an hour and the default 60-second timeout will kill jobs mid-run. `--queue=cypress` is required — both Cypress and Playwright jobs dispatch to this queue.
+> **Note:** `--timeout=3600` on the cypress queue worker is important. Test runs can take up to an hour and the default 60-second timeout will kill jobs mid-run. `--queue=cypress` is required — both Cypress and Playwright jobs dispatch to this queue. The `default` queue handles email notifications, Slack alerts, and health breach checks — it must also be running for these to process.
 
 ---
 
