@@ -1,0 +1,69 @@
+<?php
+
+/**
+ * Copyright (c) 2026 Ben Wake
+ *
+ * This source code is licensed under the MIT License.
+ * See the LICENSE file for details.
+ */
+
+namespace App\Models;
+
+use App\Enums\ConversationStatus;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Prunable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
+
+class AiConversation extends Model
+{
+    use Prunable;
+
+    protected $fillable = [
+        'ulid',
+        'user_id',
+        'project_id',
+        'test_suite_id',
+        'title',
+        'messages',
+        'crawl_data',
+        'framework',
+        'status',
+    ];
+
+    protected $casts = [
+        'messages'   => 'array',
+        'crawl_data' => 'array',
+        'status'     => ConversationStatus::class,
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (AiConversation $conversation) {
+            if (empty($conversation->ulid)) {
+                $conversation->ulid = (string) Str::ulid();
+            }
+        });
+    }
+
+    public function prunable()
+    {
+        return static::where('status', ConversationStatus::Completed)
+            ->where('updated_at', '<=', now()->subDays(90));
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function testSuite(): BelongsTo
+    {
+        return $this->belongsTo(TestSuite::class);
+    }
+}

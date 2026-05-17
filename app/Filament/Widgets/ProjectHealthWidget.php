@@ -37,7 +37,7 @@ class ProjectHealthWidget extends Widget
         $run = TestRun::create([
             'project_id'     => $projectId,
             'test_suite_id'  => $suiteId,
-            'runner_type'    => $project->runner_type,
+            'runner_type'    => $suite->getEffectiveRunnerType(),
             'triggered_by'   => auth()->id(),
             'trigger_source' => TriggerSource::Manual,
             'storage_disk'   => config('filesystems.default'),

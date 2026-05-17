@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AiBuilderController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClientController;
 use App\Http\Controllers\Api\V1\DashboardController;
@@ -96,6 +97,15 @@ Route::middleware(['auth:sanctum', EnsureApiTokenAbility::class.':desktop:write'
 
     // Test suite generator
     Route::post('generate-test-suite', [TestGeneratorController::class, 'generate']);
+
+    // AI Test Builder
+    Route::prefix('ai-builder')->group(function () {
+        Route::post('conversations', [AiBuilderController::class, 'createConversation']);
+        Route::get('conversations/{ulid}', [AiBuilderController::class, 'show']);
+        Route::post('conversations/{ulid}/messages', [AiBuilderController::class, 'sendMessage']);
+        Route::post('conversations/{ulid}/crawl', [AiBuilderController::class, 'crawl']);
+        Route::post('conversations/{ulid}/save-suite', [AiBuilderController::class, 'saveSuite']);
+    });
 });
 
 // ── Admin only ──────────────────────────────────────────────────────────
