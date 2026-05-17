@@ -27,7 +27,3 @@ After the code blocks, provide a brief explanation of what the tests cover and a
 If you have suggestions for additional tests the user could generate, list them at the end.
 
 @include('prompts.framework-conventions', ['framework' => $framework])
-
-@if(!empty($crawlData))
-@include('prompts.crawl-context', ['crawlData' => $crawlData])
-@endif

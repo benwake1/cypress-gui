@@ -22,6 +22,7 @@ class AiTestGeneratorService
     private const API_URL = 'https://api.anthropic.com/v1/messages';
     private const API_VERSION = '2023-06-01';
     private const MAX_TOKENS = 4096;
+    private const MAX_RECENT_MESSAGES = 4; // Keep last N messages (2 exchanges) for context
 
     private static array $offTopicPatterns = [
         '/write me a (poem|story|essay|song|letter)/i',
@@ -36,12 +37,12 @@ class AiTestGeneratorService
     {
         $this->validateInput($userMessage);
 
-        $systemPrompt = $this->buildSystemPrompt($framework, $conversation->crawl_data);
+        $systemBlocks = $this->buildSystemBlocks($framework, $conversation->crawl_data);
 
         $messages = $conversation->messages ?? [];
         $messages[] = ['role' => 'user', 'content' => $userMessage, 'timestamp' => now()->toIso8601String()];
 
-        $response = $this->callApi($systemPrompt, $messages);
+        $response = $this->callApi($systemBlocks, $messages);
 
         $messages[] = ['role' => 'assistant', 'content' => $response['content'], 'timestamp' => now()->toIso8601String()];
         $conversation->update(['messages' => $messages]);
@@ -53,12 +54,12 @@ class AiTestGeneratorService
     {
         $this->validateInput($feedback);
 
-        $systemPrompt = $this->buildSystemPrompt($framework, $conversation->crawl_data);
+        $systemBlocks = $this->buildSystemBlocks($framework, $conversation->crawl_data);
 
         $messages = $conversation->messages ?? [];
         $messages[] = ['role' => 'user', 'content' => $feedback, 'timestamp' => now()->toIso8601String()];
 
-        $response = $this->callApi($systemPrompt, $messages);
+        $response = $this->callApi($systemBlocks, $messages);
 
         $messages[] = ['role' => 'assistant', 'content' => $response['content'], 'timestamp' => now()->toIso8601String()];
         $conversation->update(['messages' => $messages]);
@@ -68,7 +69,7 @@ class AiTestGeneratorService
 
     public function regenerateForFramework(AiConversation $conversation, string $targetFramework): AiGenerationResult
     {
-        $systemPrompt = $this->buildSystemPrompt($targetFramework, $conversation->crawl_data);
+        $systemBlocks = $this->buildSystemBlocks($targetFramework, $conversation->crawl_data);
 
         $messages = $conversation->messages ?? [];
         $messages[] = [
@@ -77,7 +78,7 @@ class AiTestGeneratorService
             'timestamp' => now()->toIso8601String(),
         ];
 
-        $response = $this->callApi($systemPrompt, $messages);
+        $response = $this->callApi($systemBlocks, $messages);
 
         $messages[] = ['role' => 'assistant', 'content' => $response['content'], 'timestamp' => now()->toIso8601String()];
         $conversation->update(['messages' => $messages]);
@@ -100,7 +101,7 @@ class AiTestGeneratorService
     {
         $this->validateInput($userMessage);
 
-        $systemPrompt = $this->buildSystemPrompt($framework, $conversation->crawl_data);
+        $systemBlocks = $this->buildSystemBlocks($framework, $conversation->crawl_data);
 
         $messages = $conversation->messages ?? [];
         $messages[] = ['role' => 'user', 'content' => $userMessage, 'timestamp' => now()->toIso8601String()];
@@ -115,31 +116,46 @@ class AiTestGeneratorService
         ])->timeout(120)->withOptions(['stream' => true])->post(self::API_URL, [
             'model' => AppSetting::get('ai_model', config('ai.model')),
             'max_tokens' => self::MAX_TOKENS,
-            'system' => $systemPrompt,
-            'messages' => $this->formatMessages($messages),
+            'system' => $systemBlocks,
+            'messages' => $this->buildApiMessages($messages),
             'stream' => true,
         ]);
 
+        if ($response->failed()) {
+            Log::error('Anthropic streaming API call failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new \RuntimeException('AI generation failed: ' . $response->status());
+        }
+
         $fullContent = '';
         $body = $response->getBody();
+        $buffer = '';
 
         while (!$body->eof()) {
-            $line = trim($body->read(8192));
+            $buffer .= $body->read(8192);
+            $lines = explode("\n", $buffer);
+            $buffer = array_pop($lines); // keep incomplete last line in buffer
 
-            if (empty($line) || !str_starts_with($line, 'data: ')) {
-                continue;
-            }
+            foreach ($lines as $line) {
+                $line = trim($line);
 
-            $data = json_decode(substr($line, 6), true);
-            if (!$data) continue;
+                if (empty($line) || !str_starts_with($line, 'data: ')) {
+                    continue;
+                }
 
-            if ($data['type'] === 'content_block_delta' && isset($data['delta']['text'])) {
-                $fullContent .= $data['delta']['text'];
-                yield ['type' => 'delta', 'text' => $data['delta']['text']];
-            }
+                $data = json_decode(substr($line, 6), true);
+                if (!$data) continue;
 
-            if ($data['type'] === 'message_stop') {
-                break;
+                if ($data['type'] === 'content_block_delta' && isset($data['delta']['text'])) {
+                    $fullContent .= $data['delta']['text'];
+                    yield ['type' => 'delta', 'text' => $data['delta']['text']];
+                }
+
+                if ($data['type'] === 'message_stop') {
+                    break 2;
+                }
             }
         }
 
@@ -149,15 +165,46 @@ class AiTestGeneratorService
         yield ['type' => 'done', 'content' => $fullContent];
     }
 
-    private function buildSystemPrompt(string $framework, ?array $crawlData): string
+    /**
+     * Build the system prompt as an array of content blocks for prompt caching.
+     * The base prompt (framework conventions) is cached; crawl data is appended
+     * only when present and marked as the cache breakpoint.
+     */
+    private function buildSystemBlocks(string $framework, ?array $crawlData): array
     {
-        return View::make('prompts.test-generator-system', [
+        $basePrompt = View::make('prompts.test-generator-system', [
             'framework' => $framework,
-            'crawlData' => $crawlData ?? [],
+            'crawlData' => [],
         ])->render();
+
+        // If no crawl data, cache the base prompt alone
+        if (empty($crawlData)) {
+            return [
+                [
+                    'type' => 'text',
+                    'text' => $basePrompt,
+                    'cache_control' => ['type' => 'ephemeral'],
+                ],
+            ];
+        }
+
+        // With crawl data: base prompt + crawl data (cache breakpoint on crawl
+        // since it's stable across turns within the same conversation)
+        $crawlPrompt = View::make('prompts.crawl-context', [
+            'crawlData' => $crawlData,
+        ])->render();
+
+        return [
+            ['type' => 'text', 'text' => $basePrompt],
+            [
+                'type' => 'text',
+                'text' => $crawlPrompt,
+                'cache_control' => ['type' => 'ephemeral'],
+            ],
+        ];
     }
 
-    private function callApi(string $systemPrompt, array $messages): array
+    private function callApi(array $systemBlocks, array $messages): array
     {
         $apiKey = $this->getApiKey();
         set_time_limit(120);
@@ -169,8 +216,8 @@ class AiTestGeneratorService
         ])->timeout(120)->post(self::API_URL, [
             'model' => AppSetting::get('ai_model', config('ai.model')),
             'max_tokens' => self::MAX_TOKENS,
-            'system' => $systemPrompt,
-            'messages' => $this->formatMessages($messages),
+            'system' => $systemBlocks,
+            'messages' => $this->buildApiMessages($messages),
         ]);
 
         if ($response->failed()) {
@@ -194,19 +241,96 @@ class AiTestGeneratorService
                 'input' => $data['usage']['input_tokens'] ?? 0,
                 'output' => $data['usage']['output_tokens'] ?? 0,
                 'total' => ($data['usage']['input_tokens'] ?? 0) + ($data['usage']['output_tokens'] ?? 0),
+                'cache_read' => $data['usage']['cache_read_input_tokens'] ?? 0,
+                'cache_creation' => $data['usage']['cache_creation_input_tokens'] ?? 0,
             ],
         ];
     }
 
-    private function formatMessages(array $messages): array
+    /**
+     * Condense conversation history to reduce token usage.
+     *
+     * Instead of sending every message (which re-sends all generated code from
+     * every iteration), we send:
+     * 1. A "current files" context block with the latest version of each file
+     * 2. Only the last N messages of actual conversation
+     *
+     * The full history is still stored in the DB — this only affects what goes
+     * to the API.
+     */
+    private function buildApiMessages(array $messages): array
     {
-        return collect($messages)
-            ->map(fn (array $msg) => [
+        $count = count($messages);
+
+        // Short conversations: send everything as-is
+        if ($count <= self::MAX_RECENT_MESSAGES + 1) {
+            return collect($messages)
+                ->map(fn (array $msg) => [
+                    'role' => $msg['role'],
+                    'content' => $msg['content'],
+                ])
+                ->values()
+                ->all();
+        }
+
+        // Extract the latest version of all generated files from the full history
+        $currentFiles = $this->extractLatestFiles($messages);
+
+        // Take only recent messages, ensuring they start with a user message
+        // (Claude API requires strict user/assistant alternation)
+        $recentMessages = array_slice($messages, -self::MAX_RECENT_MESSAGES);
+        if (!empty($recentMessages) && ($recentMessages[0]['role'] ?? '') === 'assistant') {
+            $recentMessages = array_slice($messages, -(self::MAX_RECENT_MESSAGES - 1));
+        }
+
+        $apiMessages = [];
+
+        // Inject current file state as a user context message (if we have files)
+        if (!empty($currentFiles)) {
+            $fileContext = "Here are the current test files we're working with:\n\n";
+            foreach ($currentFiles as $path => $content) {
+                $fileContext .= "```javascript file:{$path}\n{$content}\n```\n\n";
+            }
+            $apiMessages[] = ['role' => 'user', 'content' => $fileContext];
+            $apiMessages[] = ['role' => 'assistant', 'content' => 'Understood. I have the current state of all test files. What would you like me to do?'];
+        }
+
+        // Append recent conversation
+        foreach ($recentMessages as $msg) {
+            $apiMessages[] = [
                 'role' => $msg['role'],
                 'content' => $msg['content'],
-            ])
-            ->values()
-            ->all();
+            ];
+        }
+
+        return $apiMessages;
+    }
+
+    /**
+     * Extract the latest version of each generated file from conversation history.
+     * Scans all messages in reverse order — the last occurrence of each
+     * file path is the most recent version. Checks both assistant messages
+     * (normal generation) and user messages (pre-seeded suite files).
+     */
+    private function extractLatestFiles(array $messages): array
+    {
+        $files = [];
+
+        // Walk in reverse so we find the latest version first
+        foreach (array_reverse($messages) as $msg) {
+            $content = $msg['content'] ?? '';
+            preg_match_all('/```(?:javascript|js|typescript|ts)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
+
+            foreach ($matches as $match) {
+                $path = trim($match[1]);
+                // Only keep the first (= latest, since we're reversed) version of each file
+                if (!isset($files[$path])) {
+                    $files[$path] = trim($match[2]);
+                }
+            }
+        }
+
+        return $files;
     }
 
     private function getApiKey(): string

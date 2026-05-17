@@ -117,6 +117,7 @@ class AiTestBuilderPage extends Page
     {
         $this->projectId = $projectId;
         $this->conversationUlid = null;
+        $this->preloadedSuiteId = null;
         $this->chatMessages = [];
         $this->generatedFiles = [];
 
@@ -170,7 +171,7 @@ class AiTestBuilderPage extends Page
         }
 
         $this->projectId = $suite->project_id;
-        $this->framework = $suite->getEffectiveRunnerType();
+        $this->framework = $suite->getEffectiveRunnerType()->value;
         $this->suiteName = $suite->name;
         $this->preloadedSuiteId = $suite->id;
 
@@ -179,13 +180,23 @@ class AiTestBuilderPage extends Page
             $this->generatedFiles[$file->file_path] = $file->content;
         }
 
-        $this->chatMessages = [
-            [
-                'role' => 'assistant',
-                'content' => "Loaded " . count($this->generatedFiles) . " existing test file(s) from the **{$suite->name}** suite. You can ask me to modify, extend, or regenerate these tests.",
-                'timestamp' => now()->toIso8601String(),
-            ],
-        ];
+        if (empty($this->generatedFiles)) {
+            $this->chatMessages = [
+                [
+                    'role' => 'assistant',
+                    'content' => "Opened the **{$suite->name}** suite. It has no test files yet — describe what you'd like to test and I'll generate them.",
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ];
+        } else {
+            $this->chatMessages = [
+                [
+                    'role' => 'assistant',
+                    'content' => "Loaded " . count($this->generatedFiles) . " existing test file(s) from the **{$suite->name}** suite. You can ask me to modify, extend, or regenerate these tests.",
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ];
+        }
     }
 
     public function sendMessage(): void
