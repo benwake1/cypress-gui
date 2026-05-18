@@ -90,9 +90,10 @@ trait RunsTestSuite
             file_put_contents($fullPath, $file->content);
         }
 
+        $runnerType = $this->run->testSuite->getEffectiveRunnerType();
+
         $hasPackageJson = $files->contains(fn ($f) => $f->file_path === 'package.json');
         if (!$hasPackageJson) {
-            $runnerType = $this->run->testSuite->getEffectiveRunnerType();
             $deps = $runnerType === \App\Enums\RunnerType::Cypress
                 ? ['cypress' => '^13']
                 : ['@playwright/test' => '^1'];
@@ -107,6 +108,30 @@ trait RunsTestSuite
                 $this->runPath . '/package.json',
                 json_encode($packageJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
             );
+        }
+
+        // Generate a minimal playwright.config.ts if none exists in managed files
+        if ($runnerType === \App\Enums\RunnerType::Playwright) {
+            $hasPlaywrightConfig = $files->contains(fn ($f) => str_contains($f->file_path, 'playwright.config'));
+            if (!$hasPlaywrightConfig) {
+                $config = <<<'TS'
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests',
+  timeout: 30_000,
+  retries: 0,
+  use: {
+    headless: true,
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
+  },
+  reporter: [['list'], ['json', { outputFile: 'test-results.json' }]],
+});
+TS;
+                file_put_contents($this->runPath . '/playwright.config.ts', $config . "\n");
+                $this->log("📝 Generated default playwright.config.ts");
+            }
         }
 
         $this->log("✅ {$files->count()} test files written.");

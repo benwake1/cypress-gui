@@ -48,8 +48,15 @@ class AiConversation extends Model
 
     public function prunable()
     {
-        return static::where('status', ConversationStatus::Completed)
-            ->where('updated_at', '<=', now()->subDays(90));
+        // Completed conversations: prune after 90 days
+        // Active/failed conversations with no updates: prune after 30 days
+        return static::where(function ($query) {
+            $query->where('status', ConversationStatus::Completed)
+                ->where('updated_at', '<=', now()->subDays(90));
+        })->orWhere(function ($query) {
+            $query->whereIn('status', [ConversationStatus::Active, ConversationStatus::Failed])
+                ->where('updated_at', '<=', now()->subDays(30));
+        });
     }
 
     public function user(): BelongsTo

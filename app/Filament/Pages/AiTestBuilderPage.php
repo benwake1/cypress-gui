@@ -140,6 +140,54 @@ class AiTestBuilderPage extends Page
         $this->isGenerating = false;
     }
 
+    public function deleteConversation(string $ulid): void
+    {
+        $conversation = AiConversation::where('ulid', $ulid)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$conversation) {
+            Notification::make()->title('Conversation not found')->danger()->send();
+            return;
+        }
+
+        // If we're deleting the currently active conversation, reset state
+        if ($this->conversationUlid === $ulid) {
+            $this->newConversation();
+        }
+
+        $conversation->delete();
+
+        Notification::make()->title('Conversation deleted')->success()->send();
+    }
+
+    public function clearAllConversations(): void
+    {
+        if (!$this->projectId) {
+            return;
+        }
+
+        $count = AiConversation::where('project_id', $this->projectId)
+            ->where('user_id', auth()->id())
+            ->count();
+
+        if ($count === 0) {
+            Notification::make()->title('No conversations to clear')->warning()->send();
+            return;
+        }
+
+        AiConversation::where('project_id', $this->projectId)
+            ->where('user_id', auth()->id())
+            ->delete();
+
+        $this->newConversation();
+
+        Notification::make()
+            ->title("{$count} conversation(s) cleared")
+            ->success()
+            ->send();
+    }
+
     public function loadConversation(string $ulid): void
     {
         $conversation = AiConversation::where('ulid', $ulid)
@@ -519,7 +567,7 @@ class AiTestBuilderPage extends Page
             }
 
             $content = $msg['content'] ?? '';
-            preg_match_all('/```(?:javascript|js|typescript|ts)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
+            preg_match_all('/```(?:javascript|js|typescript|ts|json)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
 
             foreach ($matches as $match) {
                 $this->generatedFiles[trim($match[1])] = trim($match[2]);

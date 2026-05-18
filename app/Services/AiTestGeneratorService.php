@@ -21,7 +21,7 @@ class AiTestGeneratorService
 {
     private const API_URL = 'https://api.anthropic.com/v1/messages';
     private const API_VERSION = '2023-06-01';
-    private const MAX_TOKENS = 4096;
+    private const DEFAULT_MAX_TOKENS = 4096;
     private const MAX_RECENT_MESSAGES = 4; // Keep last N messages (2 exchanges) for context
 
     private static array $offTopicPatterns = [
@@ -115,7 +115,7 @@ class AiTestGeneratorService
             'content-type' => 'application/json',
         ])->timeout(120)->withOptions(['stream' => true])->post(self::API_URL, [
             'model' => AppSetting::get('ai_model', config('ai.model')),
-            'max_tokens' => self::MAX_TOKENS,
+            'max_tokens' => (int) AppSetting::get('ai_max_tokens', self::DEFAULT_MAX_TOKENS),
             'system' => $systemBlocks,
             'messages' => $this->buildApiMessages($messages),
             'stream' => true,
@@ -215,7 +215,7 @@ class AiTestGeneratorService
             'content-type' => 'application/json',
         ])->timeout(120)->post(self::API_URL, [
             'model' => AppSetting::get('ai_model', config('ai.model')),
-            'max_tokens' => self::MAX_TOKENS,
+            'max_tokens' => (int) AppSetting::get('ai_max_tokens', self::DEFAULT_MAX_TOKENS),
             'system' => $systemBlocks,
             'messages' => $this->buildApiMessages($messages),
         ]);
@@ -319,7 +319,7 @@ class AiTestGeneratorService
         // Walk in reverse so we find the latest version first
         foreach (array_reverse($messages) as $msg) {
             $content = $msg['content'] ?? '';
-            preg_match_all('/```(?:javascript|js|typescript|ts)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
+            preg_match_all('/```(?:javascript|js|typescript|ts|json)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
 
             foreach ($matches as $match) {
                 $path = trim($match[1]);
@@ -352,7 +352,7 @@ class AiTestGeneratorService
         $files = [];
         $suggestions = [];
 
-        preg_match_all('/```(?:javascript|js|typescript|ts)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
+        preg_match_all('/```(?:javascript|js|typescript|ts|json)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
 
         foreach ($matches as $match) {
             $files[trim($match[1])] = trim($match[2]);

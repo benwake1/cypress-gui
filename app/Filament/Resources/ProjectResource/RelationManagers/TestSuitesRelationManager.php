@@ -211,6 +211,12 @@ class TestSuitesRelationManager extends RelationManager
                         \App\Enums\SourceType::Managed => 'warning',
                         default => 'gray',
                     }),
+                Tables\Columns\TextColumn::make('runner_type')
+                    ->label('Runner')
+                    ->badge()
+                    ->formatStateUsing(fn ($record) => $record->getEffectiveRunnerType()->label())
+                    ->color(fn ($record) => $record->runner_type ? 'info' : 'gray')
+                    ->tooltip(fn ($record) => $record->runner_type ? 'Suite override' : 'Inherited from project'),
                 Tables\Columns\TextColumn::make('spec_pattern')->limit(40)->copyable(),
                 Tables\Columns\TextColumn::make('branch_override')->placeholder('project default')->badge()->color('warning'),
                 Tables\Columns\TextColumn::make('timeout_minutes')->suffix('m')->label('Timeout'),

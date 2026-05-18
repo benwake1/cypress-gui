@@ -1,28 +1,54 @@
 <x-filament-panels::page>
 
     <style>
-        .ai-chat-container{display:flex;gap:1rem;min-height:70vh}
-        .ai-sidebar{width:260px;flex-shrink:0}
+        .ai-chat-container{display:flex;gap:1rem;min-height:75vh;position:relative}
         .ai-main{flex:1;display:flex;flex-direction:column;min-width:0}
-        .ai-code-panel{width:380px;flex-shrink:0;transition:width .2s ease}
-        .chat-messages{flex:1;overflow-y:auto;max-height:55vh;padding:1rem;scroll-behavior:smooth}
-        .chat-bubble{max-width:85%;padding:.75rem 1rem;border-radius:.75rem;margin-bottom:.75rem;word-wrap:break-word;white-space:pre-wrap;font-size:.875rem;line-height:1.5}
-        .chat-bubble-user{margin-left:auto;background:#3b82f6;color:#fff;border-bottom-right-radius:.25rem}
+        .ai-code-panel{width:45%;max-width:600px;flex-shrink:0;transition:width .2s ease}
+        .chat-messages{flex:1;overflow-y:auto;max-height:60vh;padding:1rem;scroll-behavior:smooth}
+        .chat-bubble{max-width:80%;padding:.75rem 1rem;border-radius:.75rem;margin-bottom:.75rem;word-wrap:break-word;font-size:.875rem;line-height:1.5}
+        .chat-bubble-user{margin-left:auto;background:#3b82f6;color:#fff;border-bottom-right-radius:.25rem;white-space:pre-wrap}
         .chat-bubble-assistant{margin-right:auto;background:#f3f4f6;color:#1f2937;border-bottom-left-radius:.25rem}
         .dark .chat-bubble-assistant{background:#374151;color:#e5e7eb}
-        .chat-bubble pre{background:rgba(0,0,0,.1);border-radius:.375rem;padding:.5rem;overflow-x:auto;margin:.5rem 0;font-size:.8rem}
-        .dark .chat-bubble pre{background:rgba(255,255,255,.1)}
+        .chat-bubble pre{background:rgba(0,0,0,.06);border-radius:.5rem;padding:.75rem;overflow-x:auto;margin:.5rem 0;font-size:.8rem;line-height:1.5}
+        .dark .chat-bubble pre{background:rgba(0,0,0,.3)}
+        .chat-bubble pre code{background:none;padding:0;font-size:inherit;color:inherit}
+        .chat-bubble code{background:rgba(0,0,0,.06);padding:.125rem .375rem;border-radius:.25rem;font-size:.8rem;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+        .dark .chat-bubble code{background:rgba(255,255,255,.1)}
+        .chat-bubble-assistant h1,.chat-bubble-assistant h2,.chat-bubble-assistant h3{font-weight:600;margin:.75rem 0 .375rem;line-height:1.3}
+        .chat-bubble-assistant h1{font-size:1.1rem}
+        .chat-bubble-assistant h2{font-size:1rem}
+        .chat-bubble-assistant h3{font-size:.9rem}
+        .chat-bubble-assistant ul,.chat-bubble-assistant ol{margin:.375rem 0;padding-left:1.5rem}
+        .chat-bubble-assistant ul{list-style:disc}
+        .chat-bubble-assistant ol{list-style:decimal}
+        .chat-bubble-assistant li{margin-bottom:.25rem}
+        .chat-bubble-assistant p{margin:.375rem 0}
+        .chat-bubble-assistant p:first-child{margin-top:0}
+        .chat-bubble-assistant p:last-child{margin-bottom:0}
+        .chat-bubble-assistant strong{font-weight:600}
+        .chat-bubble-assistant em{font-style:italic}
+        .chat-bubble-assistant a{color:#3b82f6;text-decoration:underline}
+        .chat-bubble-assistant blockquote{border-left:3px solid #d1d5db;padding-left:.75rem;margin:.5rem 0;color:#6b7280}
+        .dark .chat-bubble-assistant blockquote{border-left-color:#4b5563;color:#9ca3af}
+        .chat-bubble-assistant hr{border:none;border-top:1px solid #e5e7eb;margin:.75rem 0}
+        .dark .chat-bubble-assistant hr{border-top-color:#374151}
+        .chat-bubble-assistant table{border-collapse:collapse;margin:.5rem 0;font-size:.8rem;width:100%}
+        .chat-bubble-assistant th,.chat-bubble-assistant td{border:1px solid #d1d5db;padding:.375rem .5rem;text-align:left}
+        .dark .chat-bubble-assistant th,.dark .chat-bubble-assistant td{border-color:#4b5563}
+        .chat-bubble-assistant th{background:rgba(0,0,0,.04);font-weight:600}
+        .dark .chat-bubble-assistant th{background:rgba(255,255,255,.05)}
         .chat-timestamp{font-size:.65rem;margin-top:.375rem;opacity:.55}
         .chat-bubble-user .chat-timestamp{text-align:right}
         .chat-bubble-assistant .chat-timestamp{text-align:left}
         .chat-input-area{border-top:1px solid #e5e7eb;padding:.75rem}
         .dark .chat-input-area{border-color:#374151}
+        .chat-textarea{resize:none;min-height:2.5rem;max-height:10rem;field-sizing:content}
         .file-tab{cursor:pointer;padding:.375rem .75rem;border-radius:.375rem .375rem 0 0;font-size:.75rem;font-family:monospace;transition:background .15s}
         .file-tab.active{background:#3b82f6;color:#fff}
         .file-tab:not(.active){background:#e5e7eb;color:#6b7280}
         .dark .file-tab:not(.active){background:#374151;color:#9ca3af}
         .code-display{background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:.8rem;padding:1rem;overflow:auto;max-height:55vh;border-radius:0 0 .5rem .5rem;white-space:pre;line-height:1.6}
-        .conversation-item{cursor:pointer;padding:.5rem .75rem;border-radius:.375rem;font-size:.8125rem;transition:background .15s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .conversation-item{cursor:pointer;padding:.5rem .75rem;border-radius:.375rem;font-size:.8125rem;transition:background .15s;white-space:nowrap}
         .conversation-item:hover{background:#e5e7eb}
         .dark .conversation-item:hover{background:#374151}
         .conversation-item.active{background:#dbeafe;color:#1d4ed8}
@@ -39,21 +65,54 @@
         .loading-dot:nth-child(2){animation-delay:.2s}
         .loading-dot:nth-child(3){animation-delay:.4s}
         @keyframes loadingPulse{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+        /* Sidebar drawer overlay */
+        .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:40;transition:opacity .2s}
+        .sidebar-drawer{position:fixed;top:0;left:0;bottom:0;width:320px;z-index:50;transform:translateX(-100%);transition:transform .25s ease}
+        .sidebar-drawer.open{transform:translateX(0)}
+        .dark .sidebar-backdrop{background:rgba(0,0,0,.5)}
+
         @media(max-width:1024px){
-            .ai-sidebar{display:none}
             .ai-code-panel{display:none}
         }
     </style>
 
-    <div class="ai-chat-container" x-data="{ showCodePanel: true }">
+    <div class="ai-chat-container" x-data="{ showCodePanel: true, showSidebar: false }">
 
-        {{-- ═══ Sidebar ═══ --}}
-        <div class="ai-sidebar">
-            <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 p-4 h-full flex flex-col gap-4">
+        {{-- ═══ Sidebar Drawer (slide-over) ═══ --}}
+        <div
+            x-show="showSidebar"
+            x-cloak
+            class="sidebar-backdrop"
+            @click="showSidebar = false"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+        ></div>
+        <div
+            :class="{ 'open': showSidebar }"
+            class="sidebar-drawer"
+            @keydown.escape.window="showSidebar = false"
+        >
+            <div class="bg-white dark:bg-gray-900 h-full shadow-2xl border-r border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-4 overflow-y-auto">
+
+                {{-- Drawer header --}}
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Conversations</h3>
+                    <button
+                        @click="showSidebar = false"
+                        class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    >
+                        <x-heroicon-s-x-mark class="w-5 h-5" />
+                    </button>
+                </div>
 
                 {{-- Project selector --}}
                 <div>
-                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Project</label>
+                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">Project</label>
                     <select
                         wire:model.live="projectId"
                         wire:change="selectProject($event.target.value)"
@@ -70,25 +129,58 @@
                     {{-- New conversation button --}}
                     <button
                         wire:click="newConversation"
-                        class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 transition"
+                        @click="showSidebar = false"
+                        class="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 transition"
                     >
                         <x-heroicon-s-plus class="w-4 h-4" />
                         New Chat
                     </button>
 
                     {{-- Conversation history --}}
-                    <div class="flex-1 overflow-y-auto">
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Recent</p>
+                    <div class="flex-1 overflow-y-auto -mx-1 px-1">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Recent</p>
+                            @if(count($this->conversations) > 0)
+                                <button
+                                    wire:click="clearAllConversations"
+                                    wire:confirm="Clear all conversations for this project? This cannot be undone."
+                                    class="text-[.65rem] text-gray-400 hover:text-danger-500 dark:text-gray-500 dark:hover:text-danger-400 transition"
+                                    title="Clear all conversations"
+                                >
+                                    Clear All
+                                </button>
+                            @endif
+                        </div>
                         @forelse($this->conversations as $conv)
                             <div
-                                wire:click="loadConversation('{{ $conv['ulid'] }}')"
                                 @class([
-                                    'conversation-item mb-1',
+                                    'conversation-item mb-1 group flex items-center gap-2',
                                     'active' => $conversationUlid === $conv['ulid'],
                                 ])
-                                title="{{ $conv['title'] }}"
+                                title="{{ $conv['title'] }} — {{ $conv['updated_at'] }}"
                             >
-                                {{ $conv['title'] }}
+                                {{-- Status dot --}}
+                                <span @class([
+                                    'shrink-0 w-1.5 h-1.5 rounded-full',
+                                    'bg-emerald-500' => $conv['status'] === 'active',
+                                    'bg-blue-500' => $conv['status'] === 'completed',
+                                    'bg-red-500' => $conv['status'] === 'failed',
+                                ])></span>
+                                <span
+                                    wire:click="loadConversation('{{ $conv['ulid'] }}')"
+                                    @click="showSidebar = false"
+                                    class="flex-1 truncate cursor-pointer"
+                                >
+                                    {{ $conv['title'] }}
+                                </span>
+                                <button
+                                    wire:click.stop="deleteConversation('{{ $conv['ulid'] }}')"
+                                    wire:confirm="Delete this conversation?"
+                                    class="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 text-gray-400 hover:text-danger-500 transition"
+                                    title="Delete conversation"
+                                >
+                                    <x-heroicon-m-x-mark class="w-3.5 h-3.5" />
+                                </button>
                             </div>
                         @empty
                             <p class="text-xs text-gray-400 dark:text-gray-500 italic">No conversations yet</p>
@@ -106,42 +198,50 @@
         <div class="ai-main">
             <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 flex flex-col h-full">
 
-                @if(!$projectId)
-                    {{-- No project selected — full-panel prompt --}}
-                    <div class="flex-1 flex flex-col items-center justify-center text-center px-8">
-                        <div class="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-                            <x-heroicon-o-folder-open class="w-8 h-8 text-gray-400 dark:text-gray-500" />
-                        </div>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Select a Project</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
-                            Choose a project from the sidebar to start building AI-generated tests.
-                        </p>
-                    </div>
-                @else
-                    {{-- Header bar --}}
-                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <div class="flex items-center gap-3">
-                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                                @if($conversationUlid)
-                                    {{ $this->getConversation()?->title ?? 'Chat' }}
-                                @else
-                                    New Conversation
-                                @endif
-                            </h3>
+                {{-- Header bar (always visible) --}}
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-3">
+                        {{-- Sidebar toggle --}}
+                        <button
+                            @click="showSidebar = true"
+                            class="p-1.5 -ml-1 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                            title="Conversations & projects"
+                        >
+                            <x-heroicon-o-bars-3 class="w-5 h-5" />
+                        </button>
 
-                            @if($this->getConversation()?->crawl_data)
-                                <span class="crawl-badge">
-                                    <x-heroicon-s-globe-alt class="w-3 h-3" />
-                                    Crawled
-                                </span>
-                            @elseif($this->getProjectCrawlUrl())
-                                <span class="crawl-badge" title="Using project sitemap: {{ $this->getProjectCrawlUrl() }}">
-                                    <x-heroicon-s-globe-alt class="w-3 h-3" />
-                                    Sitemap
-                                </span>
+                        @if($projectId)
+                            {{-- Project name --}}
+                            <span class="text-xs font-medium text-gray-400 dark:text-gray-500">
+                                {{ \App\Models\Project::find($projectId)?->name }}
+                            </span>
+                            <span class="text-gray-300 dark:text-gray-600">/</span>
+                        @endif
+
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                            @if($conversationUlid)
+                                {{ $this->getConversation()?->title ?? 'Chat' }}
+                            @elseif($projectId)
+                                New Conversation
+                            @else
+                                AI Test Builder
                             @endif
-                        </div>
+                        </h3>
 
+                        @if($this->getConversation()?->crawl_data)
+                            <span class="crawl-badge">
+                                <x-heroicon-s-globe-alt class="w-3 h-3" />
+                                Crawled
+                            </span>
+                        @elseif($this->getProjectCrawlUrl())
+                            <span class="crawl-badge" title="Using project sitemap: {{ $this->getProjectCrawlUrl() }}">
+                                <x-heroicon-s-globe-alt class="w-3 h-3" />
+                                Sitemap
+                            </span>
+                        @endif
+                    </div>
+
+                    @if($projectId)
                         <div class="flex items-center gap-3">
                             {{-- Code panel toggle (when files exist but panel is hidden) --}}
                             @if(!empty($generatedFiles))
@@ -168,8 +268,27 @@
                                 >Playwright</button>
                             </div>
                         </div>
-                    </div>
+                    @endif
+                </div>
 
+                @if(!$projectId)
+                    {{-- No project selected — full-panel prompt --}}
+                    <div class="flex-1 flex flex-col items-center justify-center text-center px-8">
+                        <div class="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                            <x-heroicon-o-folder-open class="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Select a Project</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-4">
+                            Choose a project to start building AI-generated tests.
+                        </p>
+                        <button
+                            @click="showSidebar = true"
+                            class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 transition"
+                        >
+                            Select Project
+                        </button>
+                    </div>
+                @else
                     {{-- Chat messages area --}}
                     <div class="chat-messages" id="chat-messages">
                         @if(empty($chatMessages) && !$conversationUlid)
@@ -212,16 +331,42 @@
                                         </button>
                                     </div>
                                 </div>
+
+                                {{-- Quick-start prompt chips --}}
+                                <div class="flex flex-wrap justify-center gap-2 mt-6">
+                                    @foreach([
+                                        'Generate login page tests',
+                                        'Test the checkout flow',
+                                        'Add accessibility tests',
+                                        'Test form validation',
+                                    ] as $chip)
+                                        <button
+                                            type="button"
+                                            @click="$wire.set('userMessage', '{{ $chip }}'); $nextTick(() => $refs.chatInput?.focus())"
+                                            class="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-primary-50 hover:text-primary-700 dark:hover:bg-primary-950 dark:hover:text-primary-400 border border-gray-200 dark:border-gray-700 transition"
+                                        >
+                                            {{ $chip }}
+                                        </button>
+                                    @endforeach
+                                </div>
                             </div>
                         @else
                             {{-- Message history --}}
-                            @foreach($chatMessages as $msg)
-                                <div @class([
+                            @foreach($chatMessages as $msgIndex => $msg)
+                                <div wire:key="msg-{{ $msgIndex }}-{{ md5($msg['content'] ?? '') }}" @class([
                                     'chat-bubble',
                                     'chat-bubble-user' => ($msg['role'] ?? '') === 'user',
                                     'chat-bubble-assistant' => ($msg['role'] ?? '') === 'assistant',
                                 ])>
-                                    {!! nl2br(e($msg['content'] ?? '')) !!}
+                                    @if(($msg['role'] ?? '') === 'assistant')
+                                        <div
+                                            x-data="{ rendered: '' }"
+                                            x-init="rendered = window.renderMarkdown(@js($msg['content'] ?? ''))"
+                                            x-html="rendered"
+                                        ></div>
+                                    @else
+                                        {!! nl2br(e($msg['content'] ?? '')) !!}
+                                    @endif
                                     @if(!empty($msg['timestamp']))
                                         <div class="chat-timestamp">
                                             {{ \Carbon\Carbon::parse($msg['timestamp'])->format('M j, g:ia') }}
@@ -286,19 +431,25 @@
                             @endif
                         @endif
 
-                        <form wire:submit="sendMessage" class="flex gap-2">
-                            <input
-                                type="text"
+                        <form
+                            wire:submit="sendMessage"
+                            class="flex gap-2 items-end"
+                        >
+                            <textarea
                                 wire:model="userMessage"
+                                x-ref="chatInput"
                                 placeholder="{{ empty($chatMessages) ? 'Describe the tests you want to generate...' : 'Ask for changes or additional tests...' }}"
-                                class="flex-1 text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                                class="chat-textarea flex-1 text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 py-2"
+                                rows="1"
                                 @disabled($isGenerating)
                                 autofocus
-                            />
+                                @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); $wire.sendMessage() }"
+                            ></textarea>
                             <button
                                 type="submit"
-                                class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 transition disabled:opacity-50"
+                                class="shrink-0 p-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 transition disabled:opacity-50"
                                 @disabled($isGenerating || !$projectId)
+                                title="Send (Enter)"
                             >
                                 <span wire:loading.remove wire:target="sendMessage">
                                     <x-heroicon-s-paper-airplane class="w-4 h-4" />
@@ -308,6 +459,7 @@
                                 </span>
                             </button>
                         </form>
+                        <p class="text-[.6rem] text-gray-400 dark:text-gray-600 mt-1 text-right">Enter to send, Shift+Enter for new line</p>
                     </div>
                 @endif
             </div>
@@ -400,7 +552,57 @@
 
     </div>
 
+    {{-- Markdown rendering libraries --}}
+    <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked-highlight@2/lib/index.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/json.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" media="(prefers-color-scheme: light)">
+
     <script>
+        // Configure marked with syntax highlighting
+        (function() {
+            const { markedHighlight } = globalThis.markedHighlight;
+            marked.use(markedHighlight({
+                langPrefix: 'hljs language-',
+                highlight(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        return hljs.highlight(code, { language: lang }).value;
+                    }
+                    return hljs.highlightAuto(code).value;
+                }
+            }));
+            marked.use({
+                breaks: true,
+                gfm: true,
+            });
+        })();
+
+        window.renderMarkdown = function(content) {
+            if (!content) return '';
+            try {
+                // Sanitize: strip any <script> tags from rendered output
+                const html = marked.parse(content);
+                const div = document.createElement('div');
+                div.innerHTML = html;
+                div.querySelectorAll('script,iframe,object,embed').forEach(el => el.remove());
+                // Strip event handlers
+                div.querySelectorAll('*').forEach(el => {
+                    for (const attr of [...el.attributes]) {
+                        if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
+                    }
+                });
+                return div.innerHTML;
+            } catch (e) {
+                // Fallback to escaped text if markdown parsing fails
+                const escaped = content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                return escaped.replace(/\n/g, '<br>');
+            }
+        };
+
         function aiLoadingMessages() {
             const messages = [
                 'Thinking...',

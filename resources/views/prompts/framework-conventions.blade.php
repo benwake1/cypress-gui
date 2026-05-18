@@ -10,6 +10,8 @@
 - Avoid hard-coded waits (`cy.wait(1000)`) — use `cy.intercept` aliases or assertion retries instead.
 - Use `{ timeout: 10000 }` on specific assertions when elements may take longer to appear.
 @elseif($framework === 'playwright')
+- Generate TypeScript files (`.spec.ts`). Use proper TypeScript types where helpful.
+- Import from `@playwright/test`: `import { test, expect } from '@playwright/test';`
 - Use `page.goto()` for navigation.
 - Use `page.locator()` for element selection — prefer role-based locators (`page.getByRole()`, `page.getByLabel()`, `page.getByText()`).
 - Use `await expect(locator).toBeVisible()` and similar assertions.

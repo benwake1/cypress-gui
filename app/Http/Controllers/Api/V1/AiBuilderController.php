@@ -159,6 +159,7 @@ class AiBuilderController extends Controller
         $suite = TestSuite::create([
             'project_id' => $conversation->project_id,
             'source_type' => SourceType::Managed,
+            'runner_type' => $validated['framework'] ?? $conversation->framework,
             'name' => $validated['name'],
             'spec_pattern' => '**/*.spec.{js,ts}',
             'active' => true,
@@ -195,7 +196,7 @@ class AiBuilderController extends Controller
             }
 
             $content = $msg['content'] ?? '';
-            preg_match_all('/```(?:javascript|js|typescript|ts)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
+            preg_match_all('/```(?:javascript|js|typescript|ts|json)\s+file:(.+?)\n(.*?)```/s', $content, $matches, PREG_SET_ORDER);
 
             foreach ($matches as $match) {
                 $files[trim($match[1])] = trim($match[2]);

@@ -41,6 +41,7 @@ class AiSettingsPage extends Page
         $this->form->fill([
             'ai_anthropic_api_key' => $this->maskSecret('ai_anthropic_api_key'),
             'ai_model'             => AppSetting::get('ai_model', config('ai.model')),
+            'ai_max_tokens'        => (int) AppSetting::get('ai_max_tokens', 4096),
         ]);
     }
 
@@ -68,6 +69,18 @@ class AiSettingsPage extends Page
                                 'claude-haiku-4-5-20251001' => 'Claude Haiku 4.5 (faster, lower cost)',
                             ])
                             ->default('claude-sonnet-4-6'),
+
+                        Forms\Components\TextInput::make('ai_max_tokens')
+                            ->label('Max Response Length')
+                            ->numeric()
+                            ->minValue(1024)
+                            ->maxValue(16384)
+                            ->default(4096)
+                            ->suffix('tokens')
+                            ->helperText('The maximum length of each AI response. One token ≈ 4 characters of code. '
+                                . 'The default (4,096 tokens) is enough for most single-file tests. '
+                                . 'Increase to 8,192+ if the AI is cutting off mid-file when generating multiple test files. '
+                                . 'Higher values use more of your API quota per response.'),
                     ]),
 
                 Forms\Components\Section::make('Terms & Responsibility')
@@ -97,6 +110,7 @@ class AiSettingsPage extends Page
 
         $this->saveSecretIfChanged('ai_anthropic_api_key', $data['ai_anthropic_api_key'] ?? '');
         AppSetting::set('ai_model', $data['ai_model'] ?? 'claude-sonnet-4-6');
+        AppSetting::set('ai_max_tokens', (int) ($data['ai_max_tokens'] ?? 4096));
 
         Notification::make()
             ->title('AI settings saved')
