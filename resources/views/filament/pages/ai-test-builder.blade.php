@@ -97,7 +97,7 @@
             class="sidebar-drawer"
             @keydown.escape.window="showSidebar = false"
         >
-            <div class="bg-white dark:bg-gray-900 h-full shadow-2xl border-r border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-4 overflow-y-auto">
+            <div class="bg-white dark:bg-gray-900 h-full shadow-2xl border-r border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-4 overflow-y-auto p-6">
 
                 {{-- Drawer header --}}
                 <div class="flex items-center justify-between">
@@ -112,7 +112,7 @@
 
                 {{-- Project selector --}}
                 <div>
-                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 block">Project</label>
+                    <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 block">Project</label>
                     <select
                         wire:model.live="projectId"
                         wire:change="selectProject($event.target.value)"
@@ -176,7 +176,7 @@
                                 <button
                                     wire:click.stop="deleteConversation('{{ $conv['ulid'] }}')"
                                     wire:confirm="Delete this conversation?"
-                                    class="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 text-gray-400 hover:text-danger-500 transition"
+                                    class="shrink-0 p-0.5 rounded group-hover:opacity-100 hover:bg-gray-100 text-gray-400 hover:text-danger-500 transition"
                                     title="Delete conversation"
                                 >
                                     <x-heroicon-m-x-mark class="w-3.5 h-3.5" />
@@ -204,7 +204,7 @@
                         {{-- Sidebar toggle --}}
                         <button
                             @click="showSidebar = true"
-                            class="p-1.5 -ml-1 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                            class="p-1.5 -ml-1 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 transition"
                             title="Conversations & projects"
                         >
                             <x-heroicon-o-bars-3 class="w-5 h-5" />
