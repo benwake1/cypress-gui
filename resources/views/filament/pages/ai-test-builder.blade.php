@@ -459,7 +459,7 @@
                                 </span>
                             </button>
                         </form>
-                        <p class="text-[.6rem] text-gray-400 dark:text-gray-600 mt-1 text-right">Enter to send, Shift+Enter for new line</p>
+                        <small class="text-[.6rem] text-gray-400 dark:text-gray-600 mt-1 text-right mt-2">Enter to send, Shift+Enter for new line</small>
                     </div>
                 @endif
             </div>
